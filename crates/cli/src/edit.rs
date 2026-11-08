@@ -1,4 +1,4 @@
-//! `sinkhole allow` and `sinkhole block`: editing the config's local
+//! `sinkd allow` and `sinkd block`: editing the config's local
 //! entries.
 //!
 //! The file is edited in place with its comments and layout kept, checked
@@ -11,9 +11,9 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
-use sinkhole_core::Scope;
-use sinkhole_core::config::Config;
-use sinkhole_core::matcher::parse_domain_pattern;
+use sinkd_core::Scope;
+use sinkd_core::config::Config;
+use sinkd_core::matcher::parse_domain_pattern;
 use toml_edit::{Array, DocumentMut, Item, Value};
 
 use crate::ctl::reload_if_running;
@@ -199,9 +199,7 @@ fn applied(path: &Path) {
     if reload_if_running(path) {
         println!("Applied: the running resolver reloaded its rules.");
     } else {
-        println!(
-            "It applies when sinkhole runs (a running resolver picks up edits within seconds)."
-        );
+        println!("It applies when sinkd runs (a running resolver picks up edits within seconds).");
     }
 }
 
@@ -223,9 +221,9 @@ mod tests {
 
     #[test]
     fn edits_keep_comments_and_check_the_result() {
-        let dir = std::env::temp_dir().join(format!("sinkhole-edit-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sinkd-edit-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("sinkhole.toml");
+        let path = dir.join("sinkd.toml");
         let original = "# my settings\nallow = [\"keep.example\"] # mine\n\n[listen]\naddrs = [\"127.0.0.1:5300\"]\n";
         std::fs::write(&path, original).unwrap();
 

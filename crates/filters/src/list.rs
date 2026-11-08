@@ -20,7 +20,7 @@ pub struct Rejected {
     pub error: ParseError,
 }
 
-/// `!#include path`. Resolving it is the list loader's job (`sinkhole-lists`),
+/// `!#include path`. Resolving it is the list loader's job (`sinkd-lists`),
 /// which keeps it beside the including list, as uBO does.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Include {

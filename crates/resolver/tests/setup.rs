@@ -3,16 +3,16 @@
 
 use std::path::{Path, PathBuf};
 
-use sinkhole_core::config::Config;
-use sinkhole_lists::{Cache, Meta};
-use sinkhole_resolver::{Setup, SetupError};
+use sinkd_core::config::Config;
+use sinkd_lists::{Cache, Meta};
+use sinkd_resolver::{Setup, SetupError};
 
 /// A scratch directory removed on drop.
 struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(name: &str) -> Scratch {
-        let dir = std::env::temp_dir().join(format!("sinkhole-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sinkd-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         Scratch(dir)
     }
@@ -28,7 +28,7 @@ const UDP_UPSTREAM: &str = "[[upstream]]\nprotocol = \"udp\"\naddr = \"192.0.2.5
 
 /// Builds with a cache directory that holds nothing.
 fn from_config(config: &Config, base: &Path) -> Result<Setup, SetupError> {
-    sinkhole_resolver::from_config(config, base, &Cache::new("/nonexistent/cache"))
+    sinkd_resolver::from_config(config, base, &Cache::new("/nonexistent/cache"))
 }
 
 fn blocked(setup: &Setup, name: &str) -> bool {
@@ -149,7 +149,7 @@ fn url_lists_come_from_the_cache() {
     .unwrap();
 
     // Nothing downloaded yet: not an error, and both are watched.
-    let setup = sinkhole_resolver::from_config(&config, &dir.0, &cache).unwrap();
+    let setup = sinkd_resolver::from_config(&config, &dir.0, &cache).unwrap();
     assert_eq!(setup.missing, [0, 1]);
     assert_eq!(setup.files, [cache.path(a), cache.path(b)]);
     assert!(!blocked(&setup, "ads.example"));
@@ -169,7 +169,7 @@ fn url_lists_come_from_the_cache() {
     cache
         .store(&meta("https://lists.example/sub.txt"), b"||sub.example^\n")
         .unwrap();
-    let setup = sinkhole_resolver::from_config(&config, &dir.0, &cache).unwrap();
+    let setup = sinkd_resolver::from_config(&config, &dir.0, &cache).unwrap();
     assert_eq!(setup.missing, [1]);
     assert!(blocked(&setup, "ads.example"));
     assert!(blocked(&setup, "sub.example"), "cached includes are loaded");

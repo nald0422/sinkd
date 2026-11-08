@@ -171,7 +171,7 @@ pub(crate) fn find_separator(line: &str) -> Option<Found> {
     first_separator(line).filter(|f| plausible_cosmetic_prefix(&line[..f.start]))
 }
 
-/// Cosmetic rules whose hostname list carries syntax sinkhole does not
+/// Cosmetic rules whose hostname list carries syntax sinkd does not
 /// implement: uBO's `example.com>>##…`, and `example.com/path##…`. Read as
 /// network rules these could never match (`>` is not a URL character and a
 /// request URL has no `#`), so they are reported rather than parsed as one.

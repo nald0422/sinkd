@@ -56,7 +56,7 @@ pub struct ScriptletSpec {
     pub min_args: usize,
 }
 
-/// The scriptlets sinkhole ships.
+/// The scriptlets sinkd ships.
 pub const SCRIPTLETS: &[ScriptletSpec] = &[
     ScriptletSpec {
         name: "set-constant",

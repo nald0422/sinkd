@@ -1,4 +1,4 @@
-//! `sinkhole install` and `sinkhole uninstall`: the resolver as a system
+//! `sinkd install` and `sinkd uninstall`: the resolver as a system
 //! service, and the system's DNS settings pointed at it.
 //!
 //! **Order matters.** Install starts the service and waits until it answers
@@ -9,8 +9,8 @@
 //! **Exact restoration.** The DNS settings found at install are saved
 //! before anything changes, and uninstall puts back exactly those. A
 //! setting the user changed since install (it no longer points at
-//! sinkhole) is left as it is. A shell script that restores them without
-//! sinkhole is written next to the backup, for the one-line recovery in
+//! sinkd) is left as it is. A shell script that restores them without
+//! sinkd is written next to the backup, for the one-line recovery in
 //! the README.
 //!
 //! Every change goes through [`System`], which has three implementations:
@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
-use sinkhole_core::config::Config;
+use sinkd_core::config::Config;
 
 /// What a command printed.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -107,7 +107,7 @@ impl System for Real {
             std::fs::create_dir_all(dir)?;
         }
         // Write a sibling, then rename: never a half-written file.
-        let tmp = path.with_extension("sinkhole-tmp");
+        let tmp = path.with_extension("sinkd-tmp");
         std::fs::write(&tmp, contents).with_context(|| format!("writing {}", tmp.display()))?;
         std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(mode))?;
         std::fs::rename(&tmp, path).with_context(|| format!("writing {}", path.display()))?;
@@ -334,11 +334,11 @@ pub fn starter_config(paths: &Paths, control_user: Option<u32>) -> String {
         .map(|s| format!("socket = \"{}\"\n", s.display()))
         .unwrap_or_default();
     format!(
-        r#"# sinkhole resolver config, written by `sinkhole install`.
+        r#"# sinkd resolver config, written by `sinkd install`.
 #
-# Edit freely: the resolver applies changes within seconds. `sinkhole allow
-# add NAME` and `sinkhole block add NAME` edit the two lists below, and
-# `sinkhole check NAME` explains what happens to a name.
+# Edit freely: the resolver applies changes within seconds. `sinkd allow
+# add NAME` and `sinkd block add NAME` edit the two lists below, and
+# `sinkd check NAME` explains what happens to a name.
 
 # Local entries: `example.com` (and everything below it) or `*.example.com`
 # (only names below it). The allowlist beats every blocklist.
@@ -357,7 +357,7 @@ cache_dir = "{cache}"
 
 [control]
 {socket}# Users (numeric ids) who may pause, resume and read the query log
-# without sudo. Anyone may read the counters (`sinkhole stats`).
+# without sudo. Anyone may read the counters (`sinkd stats`).
 users = [{users}]
 
 # Off by default. When on, the last queries are kept in memory only.
@@ -444,16 +444,16 @@ pub fn verify_system_dns(sample: Option<&str>) -> Result<String> {
     let ips = crate::dnsq::system_lookup(name).unwrap_or_default();
     if ips.is_empty() {
         return Err(anyhow!(
-            "the system could not resolve the blocked name {name}, so its lookups do not go through sinkhole              (sinkhole answers it with 0.0.0.0)"
+            "the system could not resolve the blocked name {name}, so its lookups do not go through sinkd              (sinkd answers it with 0.0.0.0)"
         ));
     }
     if crate::dnsq::is_null(&ips) {
         Ok(format!(
-            "the system resolves the blocked name {name} to 0.0.0.0: lookups go through sinkhole"
+            "the system resolves the blocked name {name} to 0.0.0.0: lookups go through sinkd"
         ))
     } else {
         Err(anyhow!(
-            "the system resolves the blocked name {name} to {ips:?}: lookups bypass sinkhole \
+            "the system resolves the blocked name {name} to {ips:?}: lookups bypass sinkd \
              (a VPN, or a network service still set to another server?)"
         ))
     }
@@ -481,9 +481,7 @@ pub fn install(options: &Options) -> Result<()> {
     let mut dry = DryRun;
     let sys: &mut dyn System = if options.dry_run { &mut dry } else { &mut real };
     if !options.dry_run && !crate::daemon::is_root() {
-        bail!(
-            "installing needs root: sudo sinkhole install (or --dry-run to see what it would do)"
-        );
+        bail!("installing needs root: sudo sinkd install (or --dry-run to see what it would do)");
     }
     if cfg!(target_os = "macos") {
         macos::install(sys, &macos::paths(), options)
@@ -500,7 +498,7 @@ pub fn uninstall(options: &Options) -> Result<()> {
     let sys: &mut dyn System = if options.dry_run { &mut dry } else { &mut real };
     if !options.dry_run && !crate::daemon::is_root() {
         bail!(
-            "uninstalling needs root: sudo sinkhole uninstall (or --dry-run to see what it would do)"
+            "uninstalling needs root: sudo sinkd uninstall (or --dry-run to see what it would do)"
         );
     }
     if cfg!(target_os = "macos") {

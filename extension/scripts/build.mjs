@@ -4,7 +4,7 @@
 //                          [--rulesets rulesets.toml]
 //                          [--cache DIR] [--offline] [--dev]
 //
-// 1. `sinkhole compile` turns the lists named in rulesets.toml into DNR
+// 1. `sinkd compile` turns the lists named in rulesets.toml into DNR
 //    rulesets, surrogates, the page index, scriptlet files and a report
 //    (build/compiled/).
 // 2. cargo builds the page engine for wasm32 (crates/engine-wasm).
@@ -36,7 +36,7 @@ const root = resolve(here, "..");
 const repo = resolve(root, "..");
 
 /** The add-on ID Firefox knows the extension by: permanent once published. */
-export const FIREFOX_ID = "sinkhole@sinkhole.invalid";
+export const FIREFOX_ID = "sinkd@nald0422.github.io";
 
 /**
  * The Chrome manifest, made Firefox's: an event page instead of a service
@@ -108,7 +108,7 @@ export function build(options = {}) {
   const rulesets = resolve(root, options.rulesets ?? "rulesets.toml");
   const compiled = resolve(root, options.compiled ?? "build/compiled");
 
-  const compileArgs = ["run", "--release", "--quiet", "-p", "sinkhole-cli", "--"];
+  const compileArgs = ["run", "--release", "--quiet", "-p", "sinkd-cli", "--"];
   compileArgs.push("compile", "--rulesets", rulesets, "--out", compiled);
   if (options.cache) compileArgs.push("--cache", resolve(options.cache));
   if (options.offline) compileArgs.push("--offline");
@@ -118,10 +118,10 @@ export function build(options = {}) {
   const wasmTarget = "wasm32-unknown-unknown";
   execFileSync(
     "cargo",
-    ["build", "--quiet", "-p", "sinkhole-engine-wasm", "--target", wasmTarget, "--profile", "wasm"],
+    ["build", "--quiet", "-p", "sinkd-engine-wasm", "--target", wasmTarget, "--profile", "wasm"],
     { cwd: repo, stdio },
   );
-  const wasm = join(repo, "target", wasmTarget, "wasm", "sinkhole_engine_wasm.wasm");
+  const wasm = join(repo, "target", wasmTarget, "wasm", "sinkd_engine_wasm.wasm");
 
   const tsc = join(root, "node_modules", ".bin", "tsc");
   execFileSync(tsc, ["-p", join(root, "tsconfig.json")], { cwd: root, stdio: "inherit" });

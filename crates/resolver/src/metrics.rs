@@ -151,7 +151,7 @@ pub fn render(source: &Source) -> String {
     let mut metric = |name: &str, kind: &str, help: &str, value: u64| {
         let _ = writeln!(
             out,
-            "# HELP sinkhole_{name} {help}\n# TYPE sinkhole_{name} {kind}\nsinkhole_{name} {value}"
+            "# HELP sinkd_{name} {help}\n# TYPE sinkd_{name} {kind}\nsinkd_{name} {value}"
         );
     };
     for (name, help, value) in [
@@ -238,13 +238,13 @@ pub fn render(source: &Source) -> String {
     );
     let _ = writeln!(
         out,
-        "# HELP sinkhole_upstream_failures Failures in a row of each upstream; 0 when healthy.\n# TYPE sinkhole_upstream_failures gauge"
+        "# HELP sinkd_upstream_failures Failures in a row of each upstream; 0 when healthy.\n# TYPE sinkd_upstream_failures gauge"
     );
     for u in policy.upstreams.status() {
         let label = u.upstream.replace('\\', "\\\\").replace('"', "\\\"");
         let _ = writeln!(
             out,
-            "sinkhole_upstream_failures{{upstream=\"{label}\"}} {}",
+            "sinkd_upstream_failures{{upstream=\"{label}\"}} {}",
             u.failures
         );
     }

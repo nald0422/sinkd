@@ -9,10 +9,10 @@
 //!   decompression, counted as the body streams in.
 //! - **Certificates** are checked by the operating system's verifier
 //!   (Security.framework on macOS), with rustls and *ring* doing the TLS.
-//!   sinkhole never adds a root of its own.
+//!   sinkd never adds a root of its own.
 //! - **Names** of list servers can be resolved by the caller (see
 //!   [`Resolve`]): the resolver hands in its upstreams, because once
-//!   sinkhole *is* the system resolver, asking the system would ask itself.
+//!   sinkd *is* the system resolver, asking the system would ask itself.
 
 use std::error::Error as StdError;
 use std::future::Future;
@@ -131,7 +131,7 @@ impl FetcherBuilder {
         let _ = rustls::crypto::ring::default_provider().install_default();
 
         let mut builder = reqwest::Client::builder()
-            .user_agent(concat!("sinkhole/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("sinkd/", env!("CARGO_PKG_VERSION")))
             .https_only(true)
             .redirect(redirect::Policy::custom(|attempt| {
                 if attempt.url().scheme() != "https" {

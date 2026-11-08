@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "sinkhole",
+  "name": "sinkd",
   "version": "0.0.0",
   "description": "Blocks ads and trackers, strips tracking parameters and cookies, and adds fingerprinting protection, with rules compiled from filter lists. No remote code.",
   "minimum_chrome_version": "128",
@@ -22,7 +22,7 @@
     }
   ],
   "action": {
-    "default_title": "sinkhole",
+    "default_title": "sinkd",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

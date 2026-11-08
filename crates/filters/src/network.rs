@@ -3,7 +3,7 @@
 //!
 //! The parse is lossless with respect to semantics: everything the compiler
 //! needs to emit a DNR rule (domain strings, types, party, actions) is kept as
-//! structured data. Options that sinkhole does not implement make the whole
+//! structured data. Options that sinkd does not implement make the whole
 //! rule [`ParseError::Unsupported`]; dropping just the option would broaden
 //! the rule, which is how ad blockers break sites.
 
@@ -11,7 +11,7 @@ use std::fmt;
 use std::ops::{BitOr, BitOrAssign};
 
 use serde::{Serialize, Serializer};
-use sinkhole_core::Domain;
+use sinkd_core::Domain;
 
 use crate::ParseError;
 use crate::domains::{DomainSpec, HostPattern, parse_domain_list};
@@ -486,7 +486,7 @@ fn regex_close(bytes: &[u8], open: usize) -> Option<usize> {
     None
 }
 
-/// Options that are valid in some dialect but that sinkhole does not
+/// Options that are valid in some dialect but that sinkd does not
 /// implement, with the reason shown in compile reports.
 const UNSUPPORTED_OPTIONS: &[(&str, &str)] = &[
     ("replace", "rewrites response bodies, which MV3 cannot do"),

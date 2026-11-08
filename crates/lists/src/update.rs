@@ -16,8 +16,8 @@ use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
 use reqwest::Url;
-use sinkhole_core::config::{ListSource, Updates};
-use sinkhole_filters::{Env, Line, Lines};
+use sinkd_core::config::{ListSource, Updates};
+use sinkd_filters::{Env, Line, Lines};
 use tracing::warn;
 
 use crate::cache::{Cache, Meta, unix_now};
@@ -370,14 +370,14 @@ mod tests {
 
     #[test]
     fn include_paths_stay_beside_the_list() {
-        let parent = Path::new("/etc/sinkhole/lists/main.txt");
+        let parent = Path::new("/etc/sinkd/lists/main.txt");
         assert_eq!(
             include_path(parent, "sub.txt").unwrap(),
-            Path::new("/etc/sinkhole/lists/sub.txt")
+            Path::new("/etc/sinkd/lists/sub.txt")
         );
         assert_eq!(
             include_path(parent, "./more/x.txt").unwrap(),
-            Path::new("/etc/sinkhole/lists/./more/x.txt")
+            Path::new("/etc/sinkd/lists/./more/x.txt")
         );
         for refused in ["../x.txt", "/etc/passwd", "a/../../x.txt"] {
             assert!(include_path(parent, refused).is_err(), "{refused}");
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn local_includes_are_loaded_once_each() {
-        let dir = std::env::temp_dir().join(format!("sinkhole-include-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sinkd-include-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(

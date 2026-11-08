@@ -1,5 +1,5 @@
 ! A tiny list in the three syntaxes the resolver reads. Real lists replace
-! it in milestone 3, when sinkhole can fetch them.
+! it in milestone 3, when sinkd can fetch them.
 
 # hosts-file syntax
 0.0.0.0 doubleclick.net

@@ -7,7 +7,7 @@
 // resolver on a free high port, a throwaway browser profile, and the host
 // registered in that profile only (Chromium looks for hosts in its
 // user-data directory; Firefox in $HOME, which is pointed at a temporary
-// directory for it). `sinkhole bridge install` also runs with a temporary
+// directory for it). `sinkd bridge install` also runs with a temporary
 // HOME, so nothing is written to the user's own home or browsers.
 //
 // The permission: the real build asks for it from the popup, and
@@ -34,7 +34,7 @@ const { values: args } = parseArgs({
   options: { browser: { type: "string", default: "chromium" } },
 });
 const firefox = args.browser === "firefox";
-const binary = join(repo, "target", "release", "sinkhole");
+const binary = join(repo, "target", "release", "sinkd");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -58,7 +58,7 @@ async function until(what, fn, ms = 10_000) {
 }
 
 function cli(dir, ...argv) {
-  return execFileSync(binary, ["--config", join(dir, "sinkhole.toml"), ...argv], {
+  return execFileSync(binary, ["--config", join(dir, "sinkd.toml"), ...argv], {
     encoding: "utf8",
     env: { ...process.env, HOME: join(dir, "home") },
   });
@@ -67,8 +67,8 @@ function cli(dir, ...argv) {
 async function startResolver(dir) {
   const port = await freePort();
   writeFileSync(
-    join(dir, "sinkhole.toml"),
-    `allow = ["ads.sinkhole.test"]
+    join(dir, "sinkd.toml"),
+    `allow = ["ads.sinkd.test"]
 block = ["blocked.test", "*.wild.test"]
 
 [listen]
@@ -86,7 +86,7 @@ protocol = "udp"
 addr = "127.0.0.1:9"
 `,
   );
-  const daemon = spawn(binary, ["run", "--config", join(dir, "sinkhole.toml")], {
+  const daemon = spawn(binary, ["run", "--config", join(dir, "sinkd.toml")], {
     stdio: ["ignore", "ignore", "pipe"],
   });
   let log = "";
@@ -189,7 +189,7 @@ function check(name, fn) {
 }
 
 async function run() {
-  const dir = mkdtempSync(join(tmpdir(), "sinkhole-bridge-"));
+  const dir = mkdtempSync(join(tmpdir(), "sinkd-bridge-"));
   const { daemon, log } = await startResolver(dir);
   const out = extension();
   const ext = await launch(dir, out);
@@ -204,7 +204,7 @@ async function run() {
     }).catch(async (e) => {
       throw new Error(`${e.message}; bridge: ${JSON.stringify((await state()).bridge)}`);
     });
-    assert.deepEqual(ruleById(rules, 10).condition.requestDomains, ["ads.sinkhole.test"]);
+    assert.deepEqual(ruleById(rules, 10).condition.requestDomains, ["ads.sinkd.test"]);
     assert.equal(ruleById(rules, 10).action.type, "allow");
     assert.deepEqual(ruleById(rules, 11).condition.requestDomains, ["blocked.test"]);
     assert.ok(ruleById(rules, 100).condition.regexFilter.includes("wild\\.test"));
@@ -225,7 +225,7 @@ async function run() {
         url,
       );
     const ids = (o) => o.matchedRules.map((r) => r.ruleId);
-    const allowed = await outcome("https://ads.sinkhole.test/ad.js");
+    const allowed = await outcome("https://ads.sinkd.test/ad.js");
     assert.deepEqual(ids(allowed), [10], JSON.stringify(allowed));
     assert.deepEqual(ids(await outcome("https://blocked.test/x.js")), [11]);
     assert.deepEqual(ids(await outcome("https://cdn.wild.test/x.js")), [100]);
@@ -237,7 +237,7 @@ async function run() {
       [],
     );
   });
-  check("`sinkhole block add` reaches the browser within seconds", async () => {
+  check("`sinkd block add` reaches the browser within seconds", async () => {
     const started = Date.now();
     cli(dir, "block", "add", "late.test");
     await until("the new entry", async () =>
@@ -245,7 +245,7 @@ async function run() {
     );
     return `${Date.now() - started} ms`;
   });
-  check("`sinkhole pause` pauses the browser too, and `resume` ends it", async () => {
+  check("`sinkd pause` pauses the browser too, and `resume` ends it", async () => {
     cli(dir, "pause", "--for", "5m");
     await until("the pause", async () => {
       const pause = ruleById(await dynamicRules(ext), 1);

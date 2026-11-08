@@ -1,10 +1,10 @@
-//! `sinkhole run`: the daemon, with its control socket, metrics, watchdogs
+//! `sinkd run`: the daemon, with its control socket, metrics, watchdogs
 //! and, on macOS, privilege separation.
 //!
 //! **Privilege separation (`--user`).** Port 53 on 127.0.0.1 needs root on
 //! macOS, and a resolver that parses untrusted answers should not run as
-//! root. So a root `sinkhole run --user _sinkhole` binds the sockets, then
-//! starts a second `sinkhole run` as that user, handing the bound sockets
+//! root. So a root `sinkd run --user _sinkd` binds the sockets, then
+//! starts a second `sinkd run` as that user, handing the bound sockets
 //! down (they are the only descriptors it leaves inheritable), and waits.
 //! The root parent never reads a packet; it only passes signals on and
 //! exits with the child's status. Rust's `Command::uid` drops the
@@ -21,11 +21,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow, bail};
-use sinkhole_core::config::Config;
-use sinkhole_lists::Fetcher;
-use sinkhole_resolver::control::{Control, ControlSocket};
-use sinkhole_resolver::service::{self, HangGuard};
-use sinkhole_resolver::{Reloader, Server, Sockets, bind_sockets, from_config, metrics};
+use sinkd_core::config::Config;
+use sinkd_lists::Fetcher;
+use sinkd_resolver::control::{Control, ControlSocket};
+use sinkd_resolver::service::{self, HangGuard};
+use sinkd_resolver::{Reloader, Server, Sockets, bind_sockets, from_config, metrics};
 use tracing::{debug, info, warn};
 
 use crate::{bind_hint, load_config, shutdown_signal};
@@ -66,7 +66,7 @@ async fn serve(
     config_path: &Path,
     config: Config,
     base: PathBuf,
-    cache: sinkhole_lists::Cache,
+    cache: sinkd_lists::Cache,
     sockets: Sockets,
 ) -> Result<()> {
     let started = Instant::now();
@@ -101,13 +101,13 @@ async fn serve(
     tokio::spawn(guard.run());
 
     // List servers are looked up through the upstreams in force, not the
-    // system resolver: once sinkhole is the system resolver, that would be
+    // system resolver: once sinkd is the system resolver, that would be
     // asking itself.
     let policy = server.policy();
     let fetcher = Fetcher::builder()
         .resolver(Arc::new(policy.clone()))
         .build()?;
-    let socket_path = sinkhole_resolver::control::socket_path(&config, &base);
+    let socket_path = sinkd_resolver::control::socket_path(&config, &base);
     let metrics_listen = config.metrics.enabled.then_some(config.metrics.listen);
     let reloader = Reloader::new(
         config_path.to_path_buf(),
@@ -248,7 +248,7 @@ pub fn is_root() -> bool {
 fn privileged_parent(config_path: &Path, config: &Config, user: &str) -> Result<()> {
     if !cfg!(target_os = "macos") {
         bail!(
-            "--user is for macOS; on Linux, run sinkhole from the systemd unit `sinkhole install` writes, \
+            "--user is for macOS; on Linux, run sinkd from the systemd unit `sinkd install` writes, \
              which binds port 53 without root"
         );
     }
@@ -266,7 +266,7 @@ fn privileged_parent(config_path: &Path, config: &Config, user: &str) -> Result<
     }
     let sockets = bind_sockets(&config.listen.addrs).map_err(|e| bind_hint(e, config))?;
     let spec = inheritable(&sockets)?;
-    let exe = std::env::current_exe().context("finding the sinkhole binary")?;
+    let exe = std::env::current_exe().context("finding the sinkd binary")?;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn writable_configs_are_found() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("sinkhole-perm-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sinkd-perm-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
         let config = dir.join("s.toml");

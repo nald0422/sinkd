@@ -1,4 +1,4 @@
-//! Shared building blocks for sinkhole: domain-name normalization, the DNS
+//! Shared building blocks for sinkd: domain-name normalization, the DNS
 //! domain matcher used by the resolver, and config types.
 //!
 //! This crate does no I/O and has no async code, so the resolver, the rule

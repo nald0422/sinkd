@@ -139,7 +139,7 @@ impl HangGuard {
                             silent_secs = silent.as_secs(),
                             "the resolver stopped responding; aborting so the service manager restarts it"
                         );
-                        eprintln!("sinkhole: runtime hung for {silent:?}; aborting");
+                        eprintln!("sinkd: runtime hung for {silent:?}; aborting");
                         std::process::abort();
                     }
                 }

@@ -13,31 +13,31 @@ use std::time::{Duration, Instant};
 use hickory_proto::op::{Message, Query, ResponseCode};
 use hickory_proto::rr::rdata::A;
 use hickory_proto::rr::{Name, RData, RecordType};
-use sinkhole_core::config::Config;
-use sinkhole_lists::Cache;
-use sinkhole_resolver::{Roots, Server, Stats, from_config_with_roots};
+use sinkd_core::config::Config;
+use sinkd_lists::Cache;
+use sinkd_resolver::{Roots, Server, Stats, from_config_with_roots};
 use support::{DohMode, DohServer, DotServer, ca};
 use tokio::net::UdpSocket;
 
-struct Sinkhole {
+struct Sinkd {
     addr: SocketAddr,
     stats: Arc<Stats>,
     task: tokio::task::JoinHandle<()>,
 }
 
-impl Drop for Sinkhole {
+impl Drop for Sinkd {
     fn drop(&mut self) {
         self.task.abort();
     }
 }
 
-fn trust(ca: &sinkhole_lists::testing::TestCa) -> Roots {
+fn trust(ca: &sinkd_lists::testing::TestCa) -> Roots {
     Roots::Only(Arc::new(vec![ca.ca_der()]))
 }
 
 /// A sinkhole with these upstreams and no cache, so every query reaches
 /// an upstream.
-async fn start(upstreams: &str, roots: Roots, timeout: Option<Duration>) -> Sinkhole {
+async fn start(upstreams: &str, roots: Roots, timeout: Option<Duration>) -> Sinkd {
     let config = Config::from_toml(&format!(
         "[listen]\naddrs = [\"127.0.0.1:0\"]\n[cache]\nmax_entries = 0\n{upstreams}"
     ))
@@ -56,10 +56,10 @@ async fn start(upstreams: &str, roots: Roots, timeout: Option<Duration>) -> Sink
     let task = tokio::spawn(async move {
         let _ = server.run().await;
     });
-    Sinkhole { addr, stats, task }
+    Sinkd { addr, stats, task }
 }
 
-async fn ask(s: &Sinkhole, name: &str, rtype: RecordType) -> Message {
+async fn ask(s: &Sinkd, name: &str, rtype: RecordType) -> Message {
     let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
     socket.connect(s.addr).await.unwrap();
     let mut q = Message::query();

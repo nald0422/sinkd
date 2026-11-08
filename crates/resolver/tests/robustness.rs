@@ -5,9 +5,9 @@
 use hickory_proto::op::{Edns, Message, MessageType, Query};
 use hickory_proto::rr::{Name, RecordType};
 use proptest::prelude::*;
-use sinkhole_core::config::Blocking;
-use sinkhole_core::{Domain, DomainMatcher, Scope};
-use sinkhole_resolver::{Decision, Engine, Transport};
+use sinkd_core::config::Blocking;
+use sinkd_core::{Domain, DomainMatcher, Scope};
+use sinkd_resolver::{Decision, Engine, Transport};
 
 fn engine() -> Engine {
     let mut b = DomainMatcher::builder();

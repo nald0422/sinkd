@@ -3,7 +3,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sinkhole_core::config::Config;
+use sinkd_core::config::Config;
 
 fuzz_target!(|text: &str| {
     if let Ok(config) = Config::from_toml(text) {

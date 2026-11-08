@@ -8,7 +8,7 @@
 
 use std::time::Duration;
 
-use sinkhole_filters::is_comment;
+use sinkd_filters::is_comment;
 
 /// Largest list accepted, after decompression. The biggest DNS lists in
 /// common use are around 30 MB; this leaves room and still caps the memory
@@ -52,7 +52,7 @@ pub enum Rejection {
     Empty,
     #[error(
         "shrank from {from} to {to} rules, which looks broken; \
-         `sinkhole update --force` accepts it anyway"
+         `sinkd update --force` accepts it anyway"
     )]
     Shrank { from: usize, to: usize },
 }

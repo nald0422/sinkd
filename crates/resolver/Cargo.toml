@@ -1,6 +1,6 @@
 [package]
-name = "sinkhole-resolver"
-description = "The sinkhole DNS daemon: answers blocked names locally and forwards the rest."
+name = "sinkd-resolver"
+description = "The sinkd DNS daemon: answers blocked names locally and forwards the rest."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -21,9 +21,9 @@ rustls.workspace = true
 rustls-platform-verifier.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sinkhole-core = { workspace = true, features = ["config"] }
-sinkhole-filters.workspace = true
-sinkhole-lists.workspace = true
+sinkd-core = { workspace = true, features = ["config"] }
+sinkd-filters.workspace = true
+sinkd-lists.workspace = true
 socket2.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "net", "rt", "sync", "time"] }
@@ -37,7 +37,7 @@ http-body-util.workspace = true
 hyper.workspace = true
 hyper-util.workspace = true
 proptest.workspace = true
-sinkhole-lists = { workspace = true, features = ["testing"] }
+sinkd-lists = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 
 [lints]

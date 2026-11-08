@@ -1,13 +1,13 @@
 //! Micro-benchmarks for normalization and the domain matcher.
 //!
-//! `cargo bench -p sinkhole-core`. The end-to-end budget check (1M names,
-//! load time, RSS, p99) is `cargo run --release -p sinkhole-filters
+//! `cargo bench -p sinkd-core`. The end-to-end budget check (1M names,
+//! load time, RSS, p99) is `cargo run --release -p sinkd-filters
 //! --example dns_budget`.
 
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use sinkhole_core::{Domain, DomainMatcher, QueryName, Scope};
+use sinkd_core::{Domain, DomainMatcher, QueryName, Scope};
 
 /// splitmix64: deterministic and dependency-free.
 struct Rng(u64);

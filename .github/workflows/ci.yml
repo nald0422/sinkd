@@ -29,8 +29,8 @@ jobs:
       - run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --locked --workspace
       # The wasm engine needs core without config or IDNA.
-      - run: cargo check -p sinkhole-core --no-default-features --features page --target wasm32-unknown-unknown
-      - run: cargo clippy -p sinkhole-engine-wasm --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo check -p sinkd-core --no-default-features --features page --target wasm32-unknown-unknown
+      - run: cargo clippy -p sinkd-engine-wasm --target wasm32-unknown-unknown -- -D warnings
       - run: cargo bench --workspace --no-run
 
   deny:
@@ -101,19 +101,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --locked --release -p sinkhole-cli
+      - run: cargo build --locked --release -p sinkd-cli
       - name: Config
         run: |
           upstream=$(grep -m1 '^nameserver' /run/systemd/resolve/resolv.conf | awk '{print $2}')
-          sudo mkdir -p /etc/sinkhole
-          sudo tee /etc/sinkhole/sinkhole.toml >/dev/null <<EOF
-          block = ["sinkhole-ci.test"]
+          sudo mkdir -p /etc/sinkd
+          sudo tee /etc/sinkd/sinkd.toml >/dev/null <<EOF
+          block = ["sinkd-ci.test"]
           [listen]
           addrs = ["127.0.0.1:53", "[::1]:53"]
           [updates]
-          cache_dir = "/var/cache/sinkhole"
+          cache_dir = "/var/cache/sinkd"
           [control]
-          socket = "/run/sinkhole/control.sock"
+          socket = "/run/sinkd/control.sock"
           [[upstream]]
           protocol = "udp"
           addr = "${upstream}:53"
@@ -123,17 +123,17 @@ jobs:
           ls -l /etc/resolv.conf > before.txt
           ls /etc/systemd/resolved.conf.d/ >> before.txt 2>&1 || true
           resolvectl dns >> before.txt
-      - run: ./target/release/sinkhole install --dry-run
-      - run: sudo ./target/release/sinkhole install
-      - run: sinkhole doctor
+      - run: ./target/release/sinkd install --dry-run
+      - run: sudo ./target/release/sinkd install
+      - run: sinkd doctor
       - name: A blocked name resolves to 0.0.0.0 through the system
-        run: getent ahosts sinkhole-ci.test | grep -q '^0\.0\.0\.0'
-      - run: sudo sinkhole uninstall --purge
+        run: getent ahosts sinkd-ci.test | grep -q '^0\.0\.0\.0'
+      - run: sudo sinkd uninstall --purge
       - name: After matches before
         run: |
           ls -l /etc/resolv.conf > after.txt
           ls /etc/systemd/resolved.conf.d/ >> after.txt 2>&1 || true
           resolvectl dns >> after.txt
           diff before.txt after.txt
-          ! systemctl cat sinkhole.service 2>/dev/null
-          ! test -e /usr/local/bin/sinkhole
+          ! systemctl cat sinkd.service 2>/dev/null
+          ! test -e /usr/local/bin/sinkd

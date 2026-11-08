@@ -1,4 +1,4 @@
-//! The sinkhole DNS daemon.
+//! The sinkd DNS daemon.
 //!
 //! [`Engine`] decides each query without I/O: blocked names are answered
 //! here, malformed or unsupported queries get an error, and the rest is
@@ -12,13 +12,13 @@
 //! use std::path::PathBuf;
 //! use std::sync::Arc;
 //!
-//! use sinkhole_core::config::Config;
-//! use sinkhole_lists::{Cache, Fetcher};
-//! use sinkhole_resolver::{Reloader, Server, from_config};
+//! use sinkd_core::config::Config;
+//! use sinkd_lists::{Cache, Fetcher};
+//! use sinkd_resolver::{Reloader, Server, from_config};
 //!
-//! let path = PathBuf::from("sinkhole.toml");
+//! let path = PathBuf::from("sinkd.toml");
 //! let config = Config::from_toml(&std::fs::read_to_string(&path)?)?;
-//! let cache = Cache::new("/var/cache/sinkhole");
+//! let cache = Cache::new("/var/cache/sinkd");
 //! let setup = from_config(&config, std::path::Path::new("."), &cache)?;
 //! let files = setup.files.clone();
 //! let server = Server::bind(setup.policy(), &config.listen.addrs).await?;

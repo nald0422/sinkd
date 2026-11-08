@@ -1,5 +1,5 @@
 [package]
-name = "sinkhole-compiler"
+name = "sinkd-compiler"
 description = "Compiles filter lists into target outputs: Chrome declarativeNetRequest rulesets, the resolver's domain set, and a report of what each target cannot express."
 version.workspace = true
 edition.workspace = true
@@ -15,8 +15,8 @@ regex.workspace = true
 regex-syntax.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sinkhole-core = { workspace = true, features = ["config", "page"] }
-sinkhole-filters.workspace = true
+sinkd-core = { workspace = true, features = ["config", "page"] }
+sinkd-filters.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 

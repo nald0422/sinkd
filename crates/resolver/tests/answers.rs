@@ -13,15 +13,15 @@ use std::time::Duration;
 use hickory_proto::op::{Message, Query, ResponseCode};
 use hickory_proto::rr::rdata::A;
 use hickory_proto::rr::{Name, RData, RecordType};
-use sinkhole_core::config::Config;
-use sinkhole_lists::Cache;
-use sinkhole_resolver::{
+use sinkd_core::config::Config;
+use sinkd_lists::Cache;
+use sinkd_resolver::{
     Policy, PolicyHandle, Roots, STALE_TTL, Server, Stats, from_config_with_roots,
 };
 use support::{DohMode, DohServer, ca};
 use tokio::net::UdpSocket;
 
-struct Sinkhole {
+struct Sinkd {
     addr: SocketAddr,
     stats: Arc<Stats>,
     policy: PolicyHandle,
@@ -29,7 +29,7 @@ struct Sinkhole {
     task: tokio::task::JoinHandle<()>,
 }
 
-impl Drop for Sinkhole {
+impl Drop for Sinkd {
     fn drop(&mut self) {
         self.task.abort();
     }
@@ -44,7 +44,7 @@ fn config(doh: &DohServer, top: &str) -> Config {
 }
 
 /// `top` holds top-level config keys, e.g. `block = [...]`.
-async fn start(doh: &DohServer, ca: &sinkhole_lists::testing::TestCa, top: &str) -> Sinkhole {
+async fn start(doh: &DohServer, ca: &sinkd_lists::testing::TestCa, top: &str) -> Sinkd {
     let config = config(doh, top);
     let roots = Roots::Only(Arc::new(vec![ca.ca_der()]));
     let setup =
@@ -58,7 +58,7 @@ async fn start(doh: &DohServer, ca: &sinkhole_lists::testing::TestCa, top: &str)
     let task = tokio::spawn(async move {
         let _ = server.run().await;
     });
-    Sinkhole {
+    Sinkd {
         addr,
         stats,
         policy,
@@ -67,7 +67,7 @@ async fn start(doh: &DohServer, ca: &sinkhole_lists::testing::TestCa, top: &str)
     }
 }
 
-async fn ask(s: &Sinkhole, name: &str, rtype: RecordType) -> Message {
+async fn ask(s: &Sinkd, name: &str, rtype: RecordType) -> Message {
     let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
     socket.connect(s.addr).await.unwrap();
     let mut q = Message::query();

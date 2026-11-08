@@ -1,4 +1,4 @@
-//! `sinkhole stats`, `pause` and `resume`: requests to the running daemon
+//! `sinkd stats`, `pause` and `resume`: requests to the running daemon
 //! over its control socket.
 
 use std::io;
@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
-use sinkhole_resolver::Paused;
-use sinkhole_resolver::control::{self, Request, Response, Status};
-use sinkhole_resolver::querylog::Entry;
+use sinkd_resolver::Paused;
+use sinkd_resolver::control::{self, Request, Response, Status};
+use sinkd_resolver::querylog::Entry;
 
 use crate::{ago, load_config};
 
@@ -26,7 +26,7 @@ pub async fn ask(config_path: &Path, request: Request) -> Result<Response> {
     let path = socket(config_path)?;
     let response = control::ask(&path, &request).await.map_err(|e| match e.kind() {
         io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused => anyhow!(
-            "sinkhole is not running (nothing answers on {}); start it with `sinkhole run`, or install it with `sudo sinkhole install`",
+            "sinkd is not running (nothing answers on {}); start it with `sinkd run`, or install it with `sudo sinkd install`",
             path.display()
         ),
         io::ErrorKind::PermissionDenied => anyhow!(
@@ -113,11 +113,11 @@ pub fn stats(config_path: &Path, options: &StatsOptions) -> Result<()> {
 }
 
 fn age(at_ms: u64) -> Duration {
-    let now = sinkhole_now_ms();
+    let now = sinkd_now_ms();
     Duration::from_millis(now.saturating_sub(at_ms))
 }
 
-fn sinkhole_now_ms() -> u64 {
+fn sinkd_now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
@@ -126,7 +126,7 @@ fn sinkhole_now_ms() -> u64 {
 fn print_status(s: &Status) {
     let listen: Vec<String> = s.listen.iter().map(ToString::to_string).collect();
     println!(
-        "sinkhole {} (pid {}), up {}, listening on {}",
+        "sinkd {} (pid {}), up {}, listening on {}",
         s.version,
         s.pid,
         uptime(s.uptime_secs),
@@ -176,7 +176,7 @@ fn print_status(s: &Status) {
     println!(
         "Query log: {}",
         if s.query_log {
-            "on (in memory only; `sinkhole stats --top 10`, `--recent 20`)"
+            "on (in memory only; `sinkd stats --top 10`, `--recent 20`)"
         } else {
             "off"
         }
@@ -186,11 +186,11 @@ fn print_status(s: &Status) {
 pub fn describe_pause(paused: Option<Paused>) -> String {
     match paused {
         None => "on".to_owned(),
-        Some(Paused { until_ms: None }) => "PAUSED until `sinkhole resume`".to_owned(),
+        Some(Paused { until_ms: None }) => "PAUSED until `sinkd resume`".to_owned(),
         Some(Paused {
             until_ms: Some(until),
         }) => {
-            let left = Duration::from_millis(until.saturating_sub(sinkhole_now_ms()));
+            let left = Duration::from_millis(until.saturating_sub(sinkd_now_ms()));
             format!("PAUSED for {} more", human(left))
         }
     }
@@ -234,13 +234,13 @@ pub fn pause(config_path: &Path, duration: Option<Duration>) -> Result<()> {
         Response::Done { paused } => {
             match paused.and_then(|p| p.until_ms) {
                 Some(until) => {
-                    let left = Duration::from_millis(until.saturating_sub(sinkhole_now_ms()));
+                    let left = Duration::from_millis(until.saturating_sub(sinkd_now_ms()));
                     println!(
-                        "Blocking paused for {}; it comes back by itself, or with `sinkhole resume`.",
+                        "Blocking paused for {}; it comes back by itself, or with `sinkd resume`.",
                         human(left)
                     );
                 }
-                None => println!("Blocking paused. Turn it back on with `sinkhole resume`."),
+                None => println!("Blocking paused. Turn it back on with `sinkd resume`."),
             }
             Ok(())
         }

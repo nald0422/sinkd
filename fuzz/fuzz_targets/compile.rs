@@ -4,8 +4,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sinkhole_compiler::{ListInput, compile, validate};
-use sinkhole_core::page::PageIndex;
+use sinkd_compiler::{ListInput, compile, validate};
+use sinkd_core::page::PageIndex;
 
 fuzz_target!(|text: &str| {
     let lists = [ListInput {

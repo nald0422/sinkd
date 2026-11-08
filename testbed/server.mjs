@@ -167,7 +167,7 @@ export async function startServer({ generated = {}, https = false } = {}) {
     });
   });
   if (https) {
-    const dir = mkdtempSync(join(tmpdir(), "sinkhole-testbed-tls-"));
+    const dir = mkdtempSync(join(tmpdir(), "sinkd-testbed-tls-"));
     try {
       execFileSync(
         "openssl",

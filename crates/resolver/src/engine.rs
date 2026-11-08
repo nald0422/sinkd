@@ -10,14 +10,14 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use hickory_proto::op::{Edns, Message, MessageType, OpCode, Query, ResponseCode};
 use hickory_proto::rr::rdata::{A, AAAA, PTR, SOA};
 use hickory_proto::rr::{DNSClass, Name, RData, Record, RecordType};
-use sinkhole_core::config::{BlockResponse, Blocking, SpecialNames};
-use sinkhole_core::{DomainMatcher, QueryName, Verdict};
+use sinkd_core::config::{BlockResponse, Blocking, SpecialNames};
+use sinkd_core::{DomainMatcher, QueryName, Verdict};
 use tracing::debug;
 
 use crate::cache::Key;
 use crate::special::{Special, classify, soa_owner};
 
-/// The UDP payload size sinkhole advertises upstream and to clients, and the
+/// The UDP payload size sinkd advertises upstream and to clients, and the
 /// most it sends a client over UDP: the DNS Flag Day 2020 value. It fits one
 /// packet on any common path, so nothing is ever fragmented (fragments are
 /// lost often and are a spoofing vector). Larger answers go over TCP.
@@ -73,8 +73,8 @@ impl Engine {
             matcher,
             blocking,
             special: SpecialNames::default(),
-            soa_mname: name("sinkhole.invalid."),
-            soa_rname: name("blocked.sinkhole.invalid."),
+            soa_mname: name("sinkd.invalid."),
+            soa_rname: name("blocked.sinkd.invalid."),
         }
     }
 
@@ -102,7 +102,7 @@ impl Engine {
     }
 
     /// [`Engine::decide`], with blocking switched off when `blocking` is
-    /// false (`sinkhole pause`): listed names are forwarded and answers are
+    /// false (`sinkd pause`): listed names are forwarded and answers are
     /// not uncloaked. Special names are still answered here, the Firefox
     /// canary included, so pausing does not send Firefox to its own DoH.
     pub fn decide_as(&self, packet: &[u8], transport: Transport, blocking: bool) -> Decision {
@@ -332,7 +332,7 @@ pub struct Forward {
 }
 
 impl Forward {
-    /// A query sinkhole makes on its own behalf, such as the address of a
+    /// A query sinkd makes on its own behalf, such as the address of a
     /// list server. It never passes the lists (a list must not be able to
     /// block its own updates) and goes straight to the upstreams.
     pub fn lookup(name: Name, record_type: RecordType) -> Forward {
@@ -561,7 +561,7 @@ pub fn query_name(name: &Name) -> Option<QueryName> {
 mod tests {
     use super::*;
     use hickory_proto::rr::rdata::opt::{ClientSubnet, EdnsOption};
-    use sinkhole_core::{Domain, Scope};
+    use sinkd_core::{Domain, Scope};
 
     fn engine(response: BlockResponse) -> Engine {
         let mut b = DomainMatcher::builder();

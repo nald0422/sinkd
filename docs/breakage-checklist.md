@@ -9,15 +9,15 @@ needs it.
 For each row, do the flow with everything on. If it breaks:
 
 1. Pause the site from the popup and try again. If that fixes it,
-   sinkhole is the cause.
+   sinkd is the cause.
 2. Narrow it down: switch off one privacy feature for the site, then one
    ruleset everywhere, until the flow works.
-3. For a request, `sinkhole check <url> --from <page> --type <type>` names
+3. For a request, `sinkd check <url> --from <page> --type <type>` names
    the rule.
 4. Record the site, the flow, the browser and what fixed it.
 
 Do the same with the extension alone, then with the resolver alone
-(`sinkhole pause` stops the resolver; removing the extension stops the
+(`sinkd pause` stops the resolver; removing the extension stops the
 rest).
 
 | Area | Flows to try | Watch for |
@@ -27,7 +27,7 @@ rest).
 | **Payments** | Stripe- and Adyen-hosted card fields; 3-D Secure challenge; Apple Pay or Google Pay buttons; a bank's own transfer page. | 3-D Secure iframes that stay blank; fraud scripts the lists block (the payment may still work, but must not hang). |
 | **Video** | YouTube (with and without being signed in), Twitch, Vimeo, a news site's embedded player, a streaming service with DRM. | Players that never start; ads skipped by a scriptlet that breaks playback; captions; picture-in-picture. |
 | **Maps** | Google Maps search, directions and Street View; an embedded map on a store locator; OpenStreetMap. | Grey tiles (the canvas noise must not show); the location prompt; "use precise location". |
-| **CAPTCHA** | reCAPTCHA v2 checkbox and v3 (invisible), hCaptcha, Cloudflare Turnstile. | Endless challenges. Fingerprint noise can raise a risk score. Note how many rounds it took with sinkhole on and off. |
+| **CAPTCHA** | reCAPTCHA v2 checkbox and v3 (invisible), hCaptcha, Cloudflare Turnstile. | Endless challenges. Fingerprint noise can raise a risk score. Note how many rounds it took with sinkd on and off. |
 | **Forms and uploads** | A contact form, a file upload, a support chat widget. | Chat widgets are often on tracker lists; uploads behind a blocked CDN. |
 | **Email and documents** | Gmail and Outlook on the web; opening an attachment; Google Docs and Microsoft 365 editing. | Links in mail go through link wrappers (not unwrapped yet); tracking-parameter stripping on signed links. |
 | **Social and news** | Logged-in feeds, embedded posts on a news site, a paywalled article you have access to. | Comment sections; consent banners that reappear on every visit. |
@@ -47,21 +47,21 @@ what a site can learn:
      has a randomized fingerprint".
 3. Run it twice in one session: the canvas hash stays the same. Restart
    the browser and run it again: the hash changes.
-4. It will still report a unique fingerprint from things sinkhole leaves
+4. It will still report a unique fingerprint from things sinkd leaves
    alone on purpose: the user agent, the screen size, the time zone and
    the fonts. Spoofing those would make you stand out more, not less.
 
 The resolver alone (no extension) blocks the tracker domains but changes
 nothing a page can measure, so the fingerprint result is the same as
-without sinkhole.
+without sinkd.
 
 ## The resolver, by hand
 
-- `sinkhole doctor` reports everything OK.
-- `sinkhole check doubleclick.net` reports it blocked; `dig doubleclick.net`
+- `sinkd doctor` reports everything OK.
+- `sinkd check doubleclick.net` reports it blocked; `dig doubleclick.net`
   answers `0.0.0.0`.
 - Switch Wi-Fi networks, sleep and wake the machine, connect and
-  disconnect a VPN: lookups keep working, and `sinkhole doctor` says
+  disconnect a VPN: lookups keep working, and `sinkd doctor` says
   whether the VPN took DNS over (many do, by design).
-- `sudo sinkhole uninstall` leaves `networksetup -getdnsservers Wi-Fi` (or
+- `sudo sinkd uninstall` leaves `networksetup -getdnsservers Wi-Fi` (or
   `resolvectl status`) exactly as it was before install.

@@ -3,7 +3,7 @@ use serde::Serialize;
 /// Why a line did not become a rule.
 ///
 /// The split matters for the compiler's report: `Unsupported` is a known
-/// feature sinkhole chose not to implement (or a target cannot express), while
+/// feature sinkd chose not to implement (or a target cannot express), while
 /// `Invalid` is a malformed rule. Either way the rule is dropped, never
 /// applied in a broadened form.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, thiserror::Error)]

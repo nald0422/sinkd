@@ -95,7 +95,7 @@ pub struct DomainSet {
     /// Names back to back, each followed by its scope tag.
     arena: Vec<u8>,
     /// Arena offsets of live entries. Removed entries leave their bytes in
-    /// the arena; removal is rare (`$badfilter`, `sinkhole block rm`).
+    /// the arena; removal is rare (`$badfilter`, `sinkd block rm`).
     table: HashTable<u32>,
     hasher: RandomState,
 }

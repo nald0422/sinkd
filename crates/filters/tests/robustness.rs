@@ -3,8 +3,8 @@
 //! fragments of real syntax.
 
 use proptest::prelude::*;
-use sinkhole_filters::dns::{DnsAction, DnsFormat, parse_dns_line};
-use sinkhole_filters::{Env, Rule, parse_list, parse_rule};
+use sinkd_filters::dns::{DnsAction, DnsFormat, parse_dns_line};
+use sinkd_filters::{Env, Rule, parse_list, parse_rule};
 
 fn rule_like() -> impl Strategy<Value = String> {
     let fragments = vec![

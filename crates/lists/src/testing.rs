@@ -39,7 +39,7 @@ impl TestCa {
         ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         ca_params
             .distinguished_name
-            .push(DnType::CommonName, "sinkhole test CA");
+            .push(DnType::CommonName, "sinkd test CA");
         let ca_key = KeyPair::generate().expect("CA key");
         let ca_cert = ca_params.self_signed(&ca_key).expect("CA certificate");
         let issuer = Issuer::new(ca_params, ca_key);

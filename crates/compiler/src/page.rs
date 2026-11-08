@@ -27,13 +27,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::json;
-use sinkhole_core::page::{
+use sinkd_core::page::{
     ELEMHIDE, GENERICHIDE, Mask, PageIndex, PageIndexBuilder, SPECIFICHIDE, TWO_LABEL_SUFFIXES,
     host_keys,
 };
-use sinkhole_filters::network::ResourceTypes;
-use sinkhole_filters::scriptlet::Dialect;
-use sinkhole_filters::{
+use sinkd_filters::network::ResourceTypes;
+use sinkd_filters::scriptlet::Dialect;
+use sinkd_filters::{
     CosmeticAction, CosmeticRule, DomainSpec, HostPattern, NetworkRule, ScriptletRule,
 };
 
@@ -575,7 +575,7 @@ fn bucket_of(site: &str, buckets: usize) -> usize {
     (hash % buckets as u64) as usize
 }
 
-fn call_key(call: &sinkhole_filters::ScriptletCall) -> Vec<String> {
+fn call_key(call: &sinkd_filters::ScriptletCall) -> Vec<String> {
     let dialect = match call.dialect {
         Dialect::Ublock => "u",
         Dialect::Adguard => "a",
@@ -740,7 +740,7 @@ fn match_patterns<'a>(keys: impl Iterator<Item = &'a String>) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sinkhole_filters::{Rule, parse_rule};
+    use sinkd_filters::{Rule, parse_rule};
 
     fn target() -> PageTarget {
         PageTarget::new(["ads", "fixes"])
@@ -858,7 +858,7 @@ mod tests {
         );
         for f in &out.scriptlets {
             assert!(
-                !f.js.to_lowercase().contains("sinkhole"),
+                !f.js.to_lowercase().contains("sinkd"),
                 "the script names nothing"
             );
         }
@@ -961,7 +961,7 @@ mod tests {
 
     #[test]
     fn every_bundled_scriptlet_is_implemented() {
-        for spec in sinkhole_filters::scriptlet::SCRIPTLETS {
+        for spec in sinkd_filters::scriptlet::SCRIPTLETS {
             let quoted = format!("'{}'", spec.name);
             let bare = format!("\n  {}(", spec.name);
             assert!(

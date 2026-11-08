@@ -18,7 +18,7 @@ use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use sinkhole_lists::testing::TestCa;
+use sinkd_lists::testing::TestCa;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, split};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;

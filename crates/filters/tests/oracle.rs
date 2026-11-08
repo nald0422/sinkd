@@ -12,8 +12,8 @@ use std::collections::BTreeMap;
 
 use adblock::filters::network::NetworkFilterMaskHelper;
 use adblock::lists::{ParseOptions, ParsedLine, parse_filter};
-use sinkhole_filters::network::Action;
-use sinkhole_filters::{Rule, is_comment, parse_rule};
+use sinkd_filters::network::Action;
+use sinkd_filters::{Rule, is_comment, parse_rule};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {

@@ -1,6 +1,6 @@
 [package]
-name = "sinkhole-core"
-description = "Domain normalization, the DNS domain matcher and config types for sinkhole. No I/O, no async."
+name = "sinkd-core"
+description = "Domain normalization, the DNS domain matcher and config types for sinkd. No I/O, no async."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

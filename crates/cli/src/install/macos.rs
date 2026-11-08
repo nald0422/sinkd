@@ -1,7 +1,7 @@
-//! macOS: a launchd daemon running as `_sinkhole`, and every network
+//! macOS: a launchd daemon running as `_sinkd`, and every network
 //! service's DNS servers set to 127.0.0.1 and ::1.
 //!
-//! launchd starts `sinkhole run --user _sinkhole` as root; it binds port
+//! launchd starts `sinkd run --user _sinkd` as root; it binds port
 //! 53 and hands the sockets to an unprivileged child (see `daemon.rs`).
 //! `KeepAlive` restarts it if it exits, and the hang guard makes it exit if
 //! it stops responding.
@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{Options, Paths, System, config_text, must, shell_line, shell_word};
 
-pub const LABEL: &str = "sinkhole.resolver";
-pub const USER: &str = "_sinkhole";
+pub const LABEL: &str = "io.github.nald0422.sinkd";
+pub const USER: &str = "_sinkd";
 const NETWORKSETUP: &str = "/usr/sbin/networksetup";
 const DSCL: &str = "/usr/bin/dscl";
 const LAUNCHCTL: &str = "/bin/launchctl";
@@ -31,10 +31,10 @@ const IDS: std::ops::RangeInclusive<u32> = 200..=400;
 
 pub fn paths() -> Paths {
     Paths {
-        binary: "/usr/local/bin/sinkhole".into(),
-        config: "/usr/local/etc/sinkhole/sinkhole.toml".into(),
-        cache: "/Library/Caches/sinkhole".into(),
-        state: "/Library/Application Support/sinkhole".into(),
+        binary: "/usr/local/bin/sinkd".into(),
+        config: "/usr/local/etc/sinkd/sinkd.toml".into(),
+        cache: "/Library/Caches/sinkd".into(),
+        state: "/Library/Application Support/sinkd".into(),
         control_socket: None,
     }
 }
@@ -43,7 +43,7 @@ fn plist_path() -> PathBuf {
     PathBuf::from(format!("/Library/LaunchDaemons/{LABEL}.plist"))
 }
 
-const LOG: &str = "/Library/Logs/sinkhole.log";
+const LOG: &str = "/Library/Logs/sinkd.log";
 
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -67,7 +67,7 @@ pub fn plist(paths: &Paths) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Written by `sinkhole install`; removed by `sinkhole uninstall`. -->
+<!-- Written by `sinkd install`; removed by `sinkd uninstall`. -->
 <plist version="1.0">
 <dict>
 	<key>Label</key>
@@ -120,7 +120,7 @@ impl Backup {
 }
 
 /// Every network service, disabled ones included (a service enabled later
-/// should use sinkhole too).
+/// should use sinkd too).
 pub fn services(sys: &mut dyn System) -> Result<Vec<String>> {
     let out = must(
         sys.query(NETWORKSETUP, &["-listallnetworkservices"])?,
@@ -188,10 +188,10 @@ fn read_backup(sys: &mut dyn System, paths: &Paths) -> Result<Option<Backup>> {
     }
 }
 
-/// A script that puts the saved settings back, without sinkhole.
+/// A script that puts the saved settings back, without sinkd.
 pub fn restore_script(backup: &Backup) -> String {
     let mut s = String::from(
-        "#!/bin/sh\n# Puts back the DNS settings found when sinkhole was installed.\n# Written by `sinkhole install`. Run it with: sudo sh restore-dns.sh\n",
+        "#!/bin/sh\n# Puts back the DNS settings found when sinkd was installed.\n# Written by `sinkd install`. Run it with: sudo sh restore-dns.sh\n",
     );
     for service in &backup.services {
         let mut args = vec!["-setdnsservers", service.name.as_str()];
@@ -208,8 +208,8 @@ pub fn restore_script(backup: &Backup) -> String {
 }
 
 /// Saves the current settings (keeping an earlier backup, so a reinstall
-/// never saves sinkhole's own settings as "the original"), then points
-/// every service at sinkhole.
+/// never saves sinkd's own settings as "the original"), then points
+/// every service at sinkd.
 pub fn point_dns(sys: &mut dyn System, paths: &Paths) -> Result<Backup> {
     let services = services(sys)?;
     let mut backup = read_backup(sys, paths)?.unwrap_or(Backup {
@@ -263,7 +263,7 @@ fn describe(servers: &[String]) -> String {
     }
 }
 
-/// Puts back the saved settings where they still point at sinkhole.
+/// Puts back the saved settings where they still point at sinkd.
 pub fn restore_dns(sys: &mut dyn System, paths: &Paths) -> Result<()> {
     let backup = read_backup(sys, paths)?.unwrap_or_default();
     for name in services(sys)? {
@@ -320,7 +320,7 @@ fn record_id(sys: &mut dyn System, path: &str, key: &str) -> Result<Option<u32>>
         .and_then(|id| id.parse().ok()))
 }
 
-/// The `_sinkhole` user and group, created if missing. Returns (uid, gid).
+/// The `_sinkd` user and group, created if missing. Returns (uid, gid).
 fn ensure_user(sys: &mut dyn System) -> Result<(u32, u32)> {
     let user_path = format!("/Users/{USER}");
     let group_path = format!("/Groups/{USER}");
@@ -347,7 +347,7 @@ fn ensure_user(sys: &mut dyn System) -> Result<(u32, u32)> {
                     "-create",
                     &group_path,
                     "RealName",
-                    "sinkhole DNS resolver",
+                    "sinkd DNS resolver",
                 ],
                 vec![".", "-create", &group_path, "Password", "*"],
             ] {
@@ -382,13 +382,7 @@ fn ensure_user(sys: &mut dyn System) -> Result<(u32, u32)> {
                 ],
                 vec![".", "-create", &user_path, "UserShell", "/usr/bin/false"],
                 vec![".", "-create", &user_path, "NFSHomeDirectory", "/var/empty"],
-                vec![
-                    ".",
-                    "-create",
-                    &user_path,
-                    "RealName",
-                    "sinkhole DNS resolver",
-                ],
+                vec![".", "-create", &user_path, "RealName", "sinkd DNS resolver"],
                 vec![".", "-create", &user_path, "Password", "*"],
                 vec![".", "-create", &user_path, "IsHidden", "1"],
             ] {
@@ -407,10 +401,10 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
     sys.note(if sys.dry_run() {
         "Dry run: nothing below is changed.\n"
     } else {
-        "Installing sinkhole as a system service.\n"
+        "Installing sinkd as a system service.\n"
     });
     let (config, existing) = config_text(sys, paths)?;
-    let exe = std::env::current_exe().context("finding the sinkhole binary")?;
+    let exe = std::env::current_exe().context("finding the sinkd binary")?;
     if exe != paths.binary {
         if let Some(dir) = paths.binary.parent() {
             sys.mkdir(dir, 0o755)?;
@@ -446,16 +440,16 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
         sys.run(LAUNCHCTL, &["bootout", &format!("system/{LABEL}")])?;
         bail!(
             "the resolver did not start, so the DNS settings were left alone; see {LOG}. \
-             Remove what was installed with: sudo sinkhole uninstall"
+             Remove what was installed with: sudo sinkd uninstall"
         );
     }
     if !sys.dry_run() {
         sys.note("  the resolver answers on 127.0.0.1:53");
     }
     if options.no_dns {
-        sys.note("\nDNS settings left alone (--no-dns). Point them at sinkhole later with: sudo sinkhole install");
+        sys.note("\nDNS settings left alone (--no-dns). Point them at sinkd later with: sudo sinkd install");
     } else {
-        sys.note("\nPointing the system's DNS at sinkhole:");
+        sys.note("\nPointing the system's DNS at sinkd:");
         point_dns(sys, paths)?;
         match sys.verify(&paths.config) {
             Some(Ok(message)) => sys.note(&format!("  check: {message}")),
@@ -468,8 +462,8 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
         return Ok(());
     }
     sys.note(&format!(
-        "\nInstalled. Undo everything with:\n  sudo sinkhole uninstall\n\
-         If sinkhole itself is broken, this restores the DNS settings alone:\n  sudo sh {}\n\
+        "\nInstalled. Undo everything with:\n  sudo sinkd uninstall\n\
+         If sinkd itself is broken, this restores the DNS settings alone:\n  sudo sh {}\n\
          Logs: {LOG}",
         shell_word(&paths.restore_script().to_string_lossy())
     ));
@@ -480,7 +474,7 @@ pub fn uninstall(sys: &mut dyn System, paths: &Paths, options: &Options) -> Resu
     sys.note(if sys.dry_run() {
         "Dry run: nothing below is changed.\n"
     } else {
-        "Uninstalling sinkhole.\n"
+        "Uninstalling sinkd.\n"
     });
     sys.note("Restoring the DNS settings:");
     restore_dns(sys, paths)?;
@@ -515,8 +509,8 @@ pub fn uninstall(sys: &mut dyn System, paths: &Paths, options: &Options) -> Resu
     }
     sys.note(
         "\nUninstalled. The browser bridge, if you set it up, is per user: \
-         remove it with `sinkhole bridge uninstall` before this binary goes, or delete \
-         sinkhole.bridge.json from your browsers' NativeMessagingHosts folders.",
+         remove it with `sinkd bridge uninstall` before this binary goes, or delete \
+         io.github.nald0422.sinkd.json from your browsers' NativeMessagingHosts folders.",
     );
     Ok(())
 }
@@ -545,9 +539,9 @@ mod tests {
             "/usr/sbin/networksetup -getdnsservers 'USB 10/100/1000 LAN'",
             "There aren't any DNS Servers set on USB 10/100/1000 LAN.\n",
         );
-        sys.fail("/bin/launchctl print system/sinkhole.resolver");
-        sys.fail("/usr/bin/dscl . -read /Users/_sinkhole UniqueID");
-        sys.fail("/usr/bin/dscl . -read /Groups/_sinkhole PrimaryGroupID");
+        sys.fail("/bin/launchctl print system/io.github.nald0422.sinkd");
+        sys.fail("/usr/bin/dscl . -read /Users/_sinkd UniqueID");
+        sys.fail("/usr/bin/dscl . -read /Groups/_sinkd PrimaryGroupID");
         sys.answer(
             "/usr/bin/dscl . -list /Users UniqueID",
             "root 0\n_www 70\nme 501\n",
@@ -589,8 +583,8 @@ mod tests {
             sys.ran("/usr/sbin/networksetup -setdnsservers 'USB 10/100/1000 LAN' 127.0.0.1 ::1")
         );
         // The user and group get the first id free in both.
-        assert!(sys.ran("/usr/bin/dscl . -create /Groups/_sinkhole PrimaryGroupID 201"));
-        assert!(sys.ran("/usr/bin/dscl . -create /Users/_sinkhole UniqueID 201"));
+        assert!(sys.ran("/usr/bin/dscl . -create /Groups/_sinkd PrimaryGroupID 201"));
+        assert!(sys.ran("/usr/bin/dscl . -create /Users/_sinkd UniqueID 201"));
         // The service ran before any DNS change.
         let bootstrap = sys
             .log
@@ -604,7 +598,7 @@ mod tests {
             .unwrap();
         assert!(bootstrap < first_dns);
         let plist = String::from_utf8(sys.files[&plist_path()].clone()).unwrap();
-        assert!(plist.contains("<string>--user</string>\n\t\t<string>_sinkhole</string>"));
+        assert!(plist.contains("<string>--user</string>\n\t\t<string>_sinkd</string>"));
     }
 
     #[test]
@@ -613,7 +607,7 @@ mod tests {
         sys.ready = false;
         assert!(install(&mut sys, &paths(), &Options::default()).is_err());
         assert!(!sys.log.iter().any(|l| l.contains("-setdnsservers")));
-        assert!(sys.ran("/bin/launchctl bootout system/sinkhole.resolver"));
+        assert!(sys.ran("/bin/launchctl bootout system/io.github.nald0422.sinkd"));
     }
 
     #[test]
@@ -621,7 +615,7 @@ mod tests {
         let mut sys = machine();
         let paths = paths();
         install(&mut sys, &paths, &Options::default()).unwrap();
-        // Now everything points at sinkhole.
+        // Now everything points at sinkd.
         sys.answer(
             "/usr/sbin/networksetup -getdnsservers Wi-Fi",
             "127.0.0.1\n::1\n",
@@ -642,7 +636,7 @@ mod tests {
         let mut sys = machine();
         let paths = paths();
         install(&mut sys, &paths, &Options::default()).unwrap();
-        // Wi-Fi still points at sinkhole; the user set the LAN by hand since.
+        // Wi-Fi still points at sinkd; the user set the LAN by hand since.
         sys.answer(
             "/usr/sbin/networksetup -getdnsservers Wi-Fi",
             "127.0.0.1\n::1\n",
@@ -652,11 +646,11 @@ mod tests {
             "9.9.9.9\n",
         );
         sys.answer(
-            "/bin/launchctl print system/sinkhole.resolver",
+            "/bin/launchctl print system/io.github.nald0422.sinkd",
             "state = running",
         );
         sys.answer(
-            "/usr/bin/dscl . -read /Users/_sinkhole UniqueID",
+            "/usr/bin/dscl . -read /Users/_sinkd UniqueID",
             "UniqueID: 201",
         );
         sys.log.clear();
@@ -664,8 +658,8 @@ mod tests {
         assert!(sys.ran("/usr/sbin/networksetup -setdnsservers Wi-Fi 8.8.8.8 1.1.1.1"));
         assert!(!sys.log.iter().any(|l| l.contains("'USB 10/100/1000 LAN'")));
         assert!(!sys.files.contains_key(&paths.backup()));
-        assert!(sys.ran("/bin/launchctl bootout system/sinkhole.resolver"));
-        assert!(sys.ran("/usr/bin/dscl . -delete /Users/_sinkhole"));
+        assert!(sys.ran("/bin/launchctl bootout system/io.github.nald0422.sinkd"));
+        assert!(sys.ran("/usr/bin/dscl . -delete /Users/_sinkd"));
         // DNS first, then the service.
         let dns = sys
             .log
@@ -686,11 +680,9 @@ mod tests {
             ..Options::default()
         };
         install(&mut sys, &paths(), &options).unwrap();
-        assert!(
-            sys.ran(
-                "/bin/launchctl bootstrap system /Library/LaunchDaemons/sinkhole.resolver.plist"
-            )
-        );
+        assert!(sys.ran(
+            "/bin/launchctl bootstrap system /Library/LaunchDaemons/io.github.nald0422.sinkd.plist"
+        ));
         assert!(!sys.log.iter().any(|l| l.contains("-setdnsservers")));
     }
 }

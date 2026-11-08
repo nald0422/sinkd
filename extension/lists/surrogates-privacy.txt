@@ -1,4 +1,4 @@
-! Title: sinkhole surrogates (privacy)
+! Title: sinkd surrogates (privacy)
 ! License: MIT OR Apache-2.0
 !
 ! Stand-ins for analytics scripts. A stand-in ga() still calls the page's

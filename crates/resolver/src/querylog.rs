@@ -3,7 +3,7 @@
 //! Nothing is written to disk. Entries older than `retention_hours`, or
 //! beyond `max_entries`, are dropped as new ones arrive, and a restart
 //! empties the log. Switching it off in the config empties it at once.
-//! Only `sinkhole stats` reads it, through the control socket, and only for
+//! Only `sinkd stats` reads it, through the control socket, and only for
 //! the users allowed to pause (see [`crate::control`]), since it shows
 //! every name anyone on the machine looked up.
 
@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use sinkhole_core::config::QueryLog as Settings;
+use sinkd_core::config::QueryLog as Settings;
 
 use crate::pause::now_ms;
 

@@ -1,7 +1,7 @@
 //! Parser coverage on real filter lists.
 //!
 //! ```text
-//! cargo run --release -p sinkhole-filters --example coverage -- \
+//! cargo run --release -p sinkd-filters --example coverage -- \
 //!     [--env chromium|firefox | --tokens a,b,c] [--examples N] [--show FEATURE] [--oracle] \
 //!     <list.txt>...
 //! ```
@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use adblock::lists::{ParseOptions, ParsedLine, parse_filter};
-use sinkhole_filters::dns::{DnsAction, DnsFormat, DnsListBuilder, parse_dns_line};
-use sinkhole_filters::{Env, ParseError, ParsedList, Rule, parse_list};
+use sinkd_filters::dns::{DnsAction, DnsFormat, DnsListBuilder, parse_dns_line};
+use sinkd_filters::{Env, ParseError, ParsedList, Rule, parse_list};
 
 struct Args {
     env: Env,
@@ -340,7 +340,7 @@ fn oracle(lists: &[List], examples: usize) {
             }
         }
     }
-    println!("\n== Oracle (rows: sinkhole, columns: adblock-rust)\n");
+    println!("\n== Oracle (rows: sinkd, columns: adblock-rust)\n");
     println!(
         "{:<10} {:>9} {:>9} {:>9}",
         "", "Network", "Cosmetic", "Rejected"

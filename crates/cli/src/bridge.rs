@@ -1,7 +1,7 @@
-//! The browser bridge: a native-messaging host, so that `sinkhole allow`,
+//! The browser bridge: a native-messaging host, so that `sinkd allow`,
 //! `block` and `pause` reach the extension too.
 //!
-//! The browser starts `sinkhole native-host` when the extension connects
+//! The browser starts `sinkd native-host` when the extension connects
 //! (it needs the optional `nativeMessaging` permission, which the user
 //! grants from the popup). The host sends the extension the local
 //! allowlist and blocklist from the resolver's config, and whether the
@@ -25,13 +25,13 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sinkhole_core::config::Config;
-use sinkhole_resolver::Paused;
+use sinkd_core::config::Config;
+use sinkd_resolver::Paused;
 
 /// The host's name, as the extension and the manifests know it.
-pub const HOST_NAME: &str = "sinkhole.bridge";
+pub const HOST_NAME: &str = "io.github.nald0422.sinkd";
 /// The Firefox add-on ID (see `extension/scripts/build.mjs`).
-pub const FIREFOX_ID: &str = "sinkhole@sinkhole.invalid";
+pub const FIREFOX_ID: &str = "sinkd@nald0422.github.io";
 /// How often the config and the daemon are checked for changes.
 const POLL: Duration = Duration::from_secs(2);
 /// The longest message read from the browser. Ours are a few bytes.
@@ -151,7 +151,7 @@ fn state_message(state: &State) -> serde_json::Value {
     value
 }
 
-/// `sinkhole native-host`: serves one browser connection until the browser
+/// `sinkd native-host`: serves one browser connection until the browser
 /// closes it.
 pub fn native_host(config_path: &Path) -> Result<()> {
     // Requests from the extension arrive on a thread of their own, so the
@@ -209,7 +209,7 @@ pub struct Browser {
     pub hosts: PathBuf,
 }
 
-/// The browsers sinkhole supports, for the current user.
+/// The browsers sinkd supports, for the current user.
 pub fn browsers() -> Result<Vec<Browser>> {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
@@ -305,12 +305,12 @@ fn launcher_path() -> Result<PathBuf> {
         .map(PathBuf::from)
         .ok_or_else(|| anyhow!("no HOME"))?;
     Ok(if cfg!(target_os = "macos") {
-        home.join("Library/Application Support/sinkhole/native-host")
+        home.join("Library/Application Support/sinkd/native-host")
     } else {
         std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| home.join(".local/share"))
-            .join("sinkhole/native-host")
+            .join("sinkd/native-host")
     })
 }
 
@@ -323,7 +323,7 @@ fn shell_quote(s: &str) -> String {
 /// script adds the config path.
 pub fn launcher(binary: &Path, config: &Path) -> String {
     format!(
-        "#!/bin/sh\n# Started by the browser when the sinkhole extension connects (native messaging).\n# Written by `sinkhole bridge install`; removed by `sinkhole bridge uninstall`.\nexec {} native-host --config {} \"$@\"\n",
+        "#!/bin/sh\n# Started by the browser when the sinkd extension connects (native messaging).\n# Written by `sinkd bridge install`; removed by `sinkd bridge uninstall`.\nexec {} native-host --config {} \"$@\"\n",
         shell_quote(&binary.to_string_lossy()),
         shell_quote(&config.to_string_lossy())
     )
@@ -332,7 +332,7 @@ pub fn launcher(binary: &Path, config: &Path) -> String {
 /// A host manifest for one browser family.
 pub fn manifest(launcher: &Path, firefox: bool, chrome_ids: &[String]) -> serde_json::Value {
     let description =
-        "sinkhole: passes the resolver's allowlist, blocklist and pause to the extension";
+        "sinkd: passes the resolver's allowlist, blocklist and pause to the extension";
     if firefox {
         json!({
             "name": HOST_NAME,
@@ -371,7 +371,7 @@ pub struct InstallOptions<'a> {
 pub fn install(config_path: &Path, o: &InstallOptions<'_>) -> Result<()> {
     if crate::daemon::is_root() {
         bail!(
-            "run `sinkhole bridge install` as yourself, without sudo: it writes into your browsers' settings"
+            "run `sinkd bridge install` as yourself, without sudo: it writes into your browsers' settings"
         );
     }
     for id in o.chrome_ids {
@@ -381,7 +381,7 @@ pub fn install(config_path: &Path, o: &InstallOptions<'_>) -> Result<()> {
             );
         }
     }
-    let binary = std::env::current_exe().context("finding the sinkhole binary")?;
+    let binary = std::env::current_exe().context("finding the sinkd binary")?;
     let config = std::path::absolute(config_path)?;
     let launcher_path = launcher_path()?;
     let mut writes: Vec<(String, PathBuf, String)> = Vec::new();
@@ -447,7 +447,7 @@ pub fn install(config_path: &Path, o: &InstallOptions<'_>) -> Result<()> {
         println!("Wrote {} ({name})", path.display());
     }
     println!(
-        "\nIn the extension's popup, choose \"Connect\" under \"sinkhole on this computer\".\nUndo with: sinkhole bridge uninstall"
+        "\nIn the extension's popup, choose \"Connect\" under \"sinkd on this computer\".\nUndo with: sinkd bridge uninstall"
     );
     Ok(())
 }
@@ -557,13 +557,9 @@ mod tests {
 
     #[test]
     fn launcher_quotes_paths() {
-        let script = launcher(
-            Path::new("/opt/it's here/sinkhole"),
-            Path::new("/etc/s.toml"),
-        );
+        let script = launcher(Path::new("/opt/it's here/sinkd"), Path::new("/etc/s.toml"));
         assert!(
-            script
-                .contains(r"exec '/opt/it'\''s here/sinkhole' native-host --config '/etc/s.toml' ")
+            script.contains(r"exec '/opt/it'\''s here/sinkd' native-host --config '/etc/s.toml' ")
         );
     }
 
@@ -584,7 +580,7 @@ mod tests {
 
     #[test]
     fn state_of_a_config() {
-        let dir = std::env::temp_dir().join(format!("sinkhole-bridge-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sinkd-bridge-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("s.toml");
         std::fs::write(

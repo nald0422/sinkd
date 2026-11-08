@@ -8,7 +8,7 @@
 //!   modification time and inode. Any change rebuilds the policy. A dozen
 //!   `stat` calls every two seconds cost nothing measurable, need no
 //!   platform file-watching API, and see editors that save by renaming. The
-//!   cache files are watched so that `sinkhole update`, run beside the
+//!   cache files are watched so that `sinkd update`, run beside the
 //!   daemon, takes effect within seconds.
 //! - **The schedule.** Each URL list is checked when its interval is up
 //!   ([`refresh_interval`]), give or take 10% so that lists, and machines,
@@ -25,7 +25,7 @@
 //! not parse, validate or build is logged and ignored, and the previous
 //! config stays in force. A rebuild that fails (a local list deleted
 //! mid-edit, say) keeps the policy that was in force. Short of removing a
-//! list on purpose, nothing that goes wrong at run time makes sinkhole block
+//! list on purpose, nothing that goes wrong at run time makes sinkd block
 //! less than it did.
 
 use std::collections::hash_map::RandomState;
@@ -37,9 +37,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use sinkhole_core::config::{Config, ListSource};
-use sinkhole_filters::Env;
-use sinkhole_lists::{BoxFuture, Cache, Fetcher, Outcome, Report, Resolve, refresh_interval};
+use sinkd_core::config::{Config, ListSource};
+use sinkd_filters::Env;
+use sinkd_lists::{BoxFuture, Cache, Fetcher, Outcome, Report, Resolve, refresh_interval};
 use tokio::sync::{Notify, Semaphore, mpsc};
 use tracing::{debug, error, info, warn};
 
@@ -276,8 +276,7 @@ impl Reloader {
             tokio::spawn(async move {
                 // The semaphore is never closed.
                 let _permit = checks.acquire_owned().await;
-                let reports =
-                    sinkhole_lists::update(&fetcher, &cache, &url, &Env::dns(), false).await;
+                let reports = sinkd_lists::update(&fetcher, &cache, &url, &Env::dns(), false).await;
                 let _ = done.send((url, reports));
             });
         }
@@ -394,7 +393,7 @@ impl Reloader {
             .collect();
         let config = candidate.clone().unwrap_or_else(|| self.config.clone());
         let cache = match &candidate {
-            Some(c) => match sinkhole_lists::cache_dir(c, &self.base) {
+            Some(c) => match sinkd_lists::cache_dir(c, &self.base) {
                 Some(dir) => Cache::new(dir),
                 None => {
                     error!("config change rejected: no cache directory; set updates.cache_dir");
@@ -465,12 +464,12 @@ impl Reloader {
         }
         if let Some(config) = candidate {
             if config.listen != self.config.listen {
-                warn!("listen settings changed; restart sinkhole to apply them");
+                warn!("listen settings changed; restart sinkd to apply them");
             }
             if config.metrics != self.config.metrics
                 || config.control.socket != self.config.control.socket
             {
-                warn!("metrics or control socket settings changed; restart sinkhole to apply them");
+                warn!("metrics or control socket settings changed; restart sinkd to apply them");
             }
             info!("config change applied");
             self.config = config;
@@ -526,7 +525,7 @@ async fn sleep_until(at: Option<Instant>) {
 }
 
 /// List servers are found through the upstreams, never through the system
-/// resolver (which may be sinkhole itself) and never against the lists.
+/// resolver (which may be sinkd itself) and never against the lists.
 impl Resolve for Upstreams {
     fn resolve(&self, host: &str) -> BoxFuture<io::Result<Vec<IpAddr>>> {
         let (upstreams, host) = (self.clone(), host.to_owned());

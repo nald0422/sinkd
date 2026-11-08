@@ -3,13 +3,13 @@
 //! Every rule becomes structured data the compiler can translate per target
 //! (DNS domain set, Chrome DNR rules, the cosmetic/scriptlet index). Nothing
 //! is hashed or discarded, so `$domain=` strings, option values and selector
-//! structure all survive to the compiler. Rules sinkhole cannot honor are
+//! structure all survive to the compiler. Rules sinkd cannot honor are
 //! returned as errors with a reason; they are never applied in a broadened
 //! form. See DESIGN.md for why this is not a wrapper around Brave's `adblock`
 //! crate.
 //!
 //! ```
-//! use sinkhole_filters::{parse_rule, Rule};
+//! use sinkd_filters::{parse_rule, Rule};
 //!
 //! let Rule::Network(rule) = parse_rule("||ads.example.com^$script,3p").unwrap() else {
 //!     unreachable!()

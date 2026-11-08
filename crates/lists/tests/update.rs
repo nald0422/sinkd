@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use sinkhole_filters::Env;
-use sinkhole_lists::testing::{Response, StaticResolver, TestServer};
-use sinkhole_lists::{Cache, Fetcher, Outcome, Report, load_url, update};
+use sinkd_filters::Env;
+use sinkd_lists::testing::{Response, StaticResolver, TestServer};
+use sinkd_lists::{Cache, Fetcher, Outcome, Report, load_url, update};
 
 /// A cache in a scratch directory, removed on drop.
 struct TempCache(Cache);
@@ -29,7 +29,7 @@ impl Drop for TempCache {
 
 fn temp_cache(name: &str) -> TempCache {
     let dir: PathBuf = std::env::temp_dir().join(format!(
-        "sinkhole-lists-{name}-{}-{:?}",
+        "sinkd-lists-{name}-{}-{:?}",
         std::process::id(),
         Instant::now()
     ));
@@ -88,7 +88,7 @@ async fn downloads_then_revalidates() {
         requests[0]
             .header("user-agent")
             .unwrap()
-            .starts_with("sinkhole/")
+            .starts_with("sinkd/")
     );
     // Not rewritten on a 304.
     assert_eq!(cache.load(&url).unwrap().unwrap(), cached);

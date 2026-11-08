@@ -4,14 +4,14 @@
 //! the list body exactly as downloaded:
 //!
 //! ```text
-//! sinkhole-list-cache 1
+//! sinkd-list-cache 1
 //! {"url":"https://…","etag":"\"abc\"","fetched_at":1762500000,"rules":51234,…}
 //! [Adblock Plus 2.0]
 //! …
 //! ```
 //!
 //! One file per list means one atomic rename per update: a reader (the
-//! daemon, or `sinkhole update` running beside it) sees either the old copy
+//! daemon, or `sinkd update` running beside it) sees either the old copy
 //! with its old ETag or the new copy with its new one, never a mix. A file
 //! that does not parse, or that belongs to another URL, reads as absent, so
 //! the list is downloaded afresh and the file replaced.
@@ -25,7 +25,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-const MAGIC: &str = "sinkhole-list-cache 1";
+const MAGIC: &str = "sinkd-list-cache 1";
 
 /// What is known about a cached copy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,7 +133,7 @@ impl Cache {
         let path = self.path(&meta.url);
         let json = serde_json::to_string(meta).map_err(io::Error::other)?;
         // Unique per process and call, so concurrent writers (the daemon
-        // and `sinkhole update`) never share a temporary file.
+        // and `sinkd update`) never share a temporary file.
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let tmp = path.with_extension(format!(
             "tmp.{}.{}",
@@ -225,7 +225,7 @@ mod tests {
 
     fn temp_dir(name: &str) -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("sinkhole-cache-test-{name}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("sinkd-cache-test-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         dir
     }
@@ -288,8 +288,8 @@ mod tests {
         for junk in [
             &b""[..],
             b"0.0.0.0 a.example\n",
-            b"sinkhole-list-cache 1\nnot json\nbody",
-            b"sinkhole-list-cache 2\n{}\nbody",
+            b"sinkd-list-cache 1\nnot json\nbody",
+            b"sinkd-list-cache 2\n{}\nbody",
         ] {
             fs::write(cache.path(url), junk).unwrap();
             assert_eq!(cache.load(url).unwrap(), None);

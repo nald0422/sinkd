@@ -1,7 +1,7 @@
-# A config for trying sinkhole without touching the system's DNS settings.
+# A config for trying sinkd without touching the system's DNS settings.
 # It listens on port 5300, so nothing on the machine uses it unless asked:
 #
-#   cargo run -p sinkhole-cli -- run --config config/dev.toml
+#   cargo run -p sinkd-cli -- run --config config/dev.toml
 #   dig @127.0.0.1 -p 5300 ads.example.com      # blocked: 0.0.0.0
 #   dig @127.0.0.1 -p 5300 example.com          # forwarded to Quad9 over DoH
 #
@@ -47,8 +47,8 @@ serve_stale_secs = 86400
 name = "dev"
 path = "dev-blocklist.txt"
 
-# Lists can also come from the web. They are cached in ~/Library/Caches/sinkhole
-# (macOS) or ~/.cache/sinkhole, and checked daily or as the list asks:
+# Lists can also come from the web. They are cached in ~/Library/Caches/sinkd
+# (macOS) or ~/.cache/sinkd, and checked daily or as the list asks:
 #
 # [[list]]
 # name = "my-list"

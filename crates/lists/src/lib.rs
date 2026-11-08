@@ -21,7 +21,7 @@ pub mod update;
 
 use std::path::{Path, PathBuf};
 
-use sinkhole_core::config::Config;
+use sinkd_core::config::Config;
 
 pub use cache::{Cache, Cached, Meta};
 pub use check::{MAX_LIST_BYTES, Rejection, Summary};
@@ -40,9 +40,9 @@ pub fn cache_dir(config: &Config, base: &Path) -> Option<PathBuf> {
     }
 }
 
-/// The platform's per-user cache directory, plus `sinkhole`:
-/// `$XDG_CACHE_HOME/sinkhole` if that is set, else
-/// `~/Library/Caches/sinkhole` on macOS and `~/.cache/sinkhole` elsewhere.
+/// The platform's per-user cache directory, plus `sinkd`:
+/// `$XDG_CACHE_HOME/sinkd` if that is set, else
+/// `~/Library/Caches/sinkd` on macOS and `~/.cache/sinkd` elsewhere.
 /// `None` without a home directory (a service with no `HOME`), in which
 /// case the config must set `updates.cache_dir`.
 pub fn default_cache_dir() -> Option<PathBuf> {
@@ -52,12 +52,12 @@ pub fn default_cache_dir() -> Option<PathBuf> {
             .filter(|p| p.is_absolute())
     };
     if let Some(xdg) = var("XDG_CACHE_HOME") {
-        return Some(xdg.join("sinkhole"));
+        return Some(xdg.join("sinkd"));
     }
     let home = var("HOME")?;
     if cfg!(target_os = "macos") {
-        Some(home.join("Library/Caches/sinkhole"))
+        Some(home.join("Library/Caches/sinkd"))
     } else {
-        Some(home.join(".cache/sinkhole"))
+        Some(home.join(".cache/sinkd"))
     }
 }

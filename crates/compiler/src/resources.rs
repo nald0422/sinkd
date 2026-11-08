@@ -2,7 +2,7 @@
 //!
 //! Names follow uBlock Origin's resource names, aliases included, so
 //! community lists select them unchanged. The files themselves are
-//! sinkhole's own (see `resources/README.md`). They are compiled into the
+//! sinkd's own (see `resources/README.md`). They are compiled into the
 //! binary, so the compiler and the extension can never disagree about which
 //! resources exist.
 
@@ -110,7 +110,7 @@ mod tests {
             assert!(
                 !String::from_utf8_lossy(r.body)
                     .to_lowercase()
-                    .contains("sinkhole"),
+                    .contains("sinkd"),
                 "{} names the extension",
                 r.name
             );

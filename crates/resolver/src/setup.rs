@@ -8,11 +8,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use sinkhole_core::config::{Config, ListAction, ListFormat, LoadError};
-use sinkhole_core::{CapacityError, DomainError, DomainMatcher};
-use sinkhole_filters::Env;
-use sinkhole_filters::dns::{DnsAction, DnsFormat, DnsListBuilder, DnsReport, DnsRule};
-use sinkhole_lists::{Cache, Part, ReadError, load_path, load_url};
+use sinkd_core::config::{Config, ListAction, ListFormat, LoadError};
+use sinkd_core::{CapacityError, DomainError, DomainMatcher};
+use sinkd_filters::Env;
+use sinkd_filters::dns::{DnsAction, DnsFormat, DnsListBuilder, DnsReport, DnsRule};
+use sinkd_lists::{Cache, Part, ReadError, load_path, load_url};
 
 use crate::cache::AnswerCache;
 use crate::engine::Engine;
@@ -174,11 +174,7 @@ fn matcher(config: &Config, base: &Path, cache: &Cache) -> Result<Lists, SetupEr
     })
 }
 
-fn local_rule(
-    action: DnsAction,
-    domain: sinkhole_core::Domain,
-    scope: sinkhole_core::Scope,
-) -> DnsRule {
+fn local_rule(action: DnsAction, domain: sinkd_core::Domain, scope: sinkd_core::Scope) -> DnsRule {
     DnsRule {
         action,
         domain,

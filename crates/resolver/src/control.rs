@@ -1,4 +1,4 @@
-//! The control socket: how `sinkhole stats`, `pause`, `resume` and the
+//! The control socket: how `sinkd stats`, `pause`, `resume` and the
 //! browser bridge talk to a running daemon.
 //!
 //! A Unix stream socket, one JSON request line in, one JSON response line
@@ -112,7 +112,7 @@ pub struct Status {
     pub cache_entries: u64,
     pub upstreams: Vec<UpstreamStatus>,
     pub query_log: bool,
-    /// A name the lists block, for `sinkhole doctor` to look up through
+    /// A name the lists block, for `sinkd doctor` to look up through
     /// the system's resolver.
     pub sample_blocked: Option<String>,
 }
@@ -120,10 +120,10 @@ pub struct Status {
 /// Where the daemon of `config` puts its control socket: `control.socket`
 /// (relative to `base`, the config file's directory), else `control.sock`
 /// in the cache directory. `None` when neither can be worked out.
-pub fn socket_path(config: &sinkhole_core::config::Config, base: &Path) -> Option<PathBuf> {
+pub fn socket_path(config: &sinkd_core::config::Config, base: &Path) -> Option<PathBuf> {
     match &config.control.socket {
         Some(path) => Some(base.join(path)),
-        None => sinkhole_lists::cache_dir(config, base).map(|dir| dir.join("control.sock")),
+        None => sinkd_lists::cache_dir(config, base).map(|dir| dir.join("control.sock")),
     }
 }
 
@@ -170,7 +170,7 @@ impl ControlSocket {
             if std::os::unix::net::UnixStream::connect(path).is_ok() {
                 return Err(io::Error::new(
                     io::ErrorKind::AddrInUse,
-                    format!("another sinkhole answers on {}", path.display()),
+                    format!("another sinkd answers on {}", path.display()),
                 ));
             }
             std::fs::remove_file(path)?;
@@ -329,7 +329,7 @@ fn sample_blocked(engine: &crate::Engine) -> Option<String> {
     matcher
         .blocklist()
         .iter()
-        .filter(|(name, scope)| *scope != sinkhole_core::Scope::Subdomains && name.contains('.'))
+        .filter(|(name, scope)| *scope != sinkd_core::Scope::Subdomains && name.contains('.'))
         .map(|(name, _)| name)
         .find(|name| matcher.check(name).is_blocked())
         .map(str::to_owned)

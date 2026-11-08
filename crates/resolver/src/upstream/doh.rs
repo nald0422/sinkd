@@ -4,7 +4,7 @@
 //! after the first query, queries share one HTTP/2 connection, multiplexed,
 //! with no handshake. The URL's host is pinned to the configured `bootstrap`
 //! addresses, so reaching the upstream never needs a DNS lookup, which
-//! would otherwise come back to sinkhole itself.
+//! would otherwise come back to sinkd itself.
 
 use std::net::{IpAddr, SocketAddr};
 
@@ -36,8 +36,8 @@ impl Doh {
         let url = Url::parse(url).map_err(|e| UpstreamError::Url(format!("{url}: {e}")))?;
         let mut builder = reqwest::Client::builder()
             .https_only(true)
-            // A proxy would put a stranger between sinkhole and its upstream,
-            // and a proxy configured by name would need sinkhole to resolve it.
+            // A proxy would put a stranger between sinkd and its upstream,
+            // and a proxy configured by name would need sinkd to resolve it.
             .no_proxy()
             .redirect(redirect::Policy::none())
             .connect_timeout(DEFAULT_TIMEOUT);

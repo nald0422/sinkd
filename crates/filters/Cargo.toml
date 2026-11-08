@@ -1,5 +1,5 @@
 [package]
-name = "sinkhole-filters"
+name = "sinkd-filters"
 description = "Lossless parser for ABP, uBlock Origin and AdGuard filter syntax."
 version.workspace = true
 edition.workspace = true
@@ -14,7 +14,7 @@ bench = false
 [dependencies]
 memchr.workspace = true
 serde.workspace = true
-sinkhole-core = { workspace = true, features = ["idna"] }
+sinkd-core = { workspace = true, features = ["idna"] }
 thiserror.workspace = true
 
 [dev-dependencies]

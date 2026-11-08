@@ -2,7 +2,7 @@
 //! 1M names at RSS < 150 MB, cold load < 2 s, lookup p99 < 1 µs.
 //!
 //! ```text
-//! cargo run --release -p sinkhole-filters --example dns_budget [-- <names> [--load-only]]
+//! cargo run --release -p sinkd-filters --example dns_budget [-- <names> [--load-only]]
 //! ```
 //!
 //! "Cold load" is the real path: hosts-format text → parse → normalize →
@@ -19,7 +19,7 @@ use std::hint::black_box;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use sinkhole_filters::dns::{DnsAction, DnsFormat, DnsListBuilder};
+use sinkd_filters::dns::{DnsAction, DnsFormat, DnsListBuilder};
 
 /// splitmix64: deterministic and dependency-free.
 struct Rng(u64);

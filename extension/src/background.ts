@@ -3,7 +3,7 @@
 // page scripts and the browser's WebRTC policy; caps the lifetime of
 // tracking cookies; answers the popup; answers the content script with
 // its page's cosmetic rules and fingerprint seed; and, once the user allows
-// it, listens to the bridge to the sinkhole command line. Requests are matched by
+// it, listens to the bridge to the sinkd command line. Requests are matched by
 // the browser itself, from the static and dynamic rules. Only in Firefox
 // does this script see requests: webRequest there uncloaks CNAMEs, and
 // applies the header rules to navigations, which Firefox's DNR doesn't.
@@ -221,7 +221,7 @@ async function save(settings: Settings): Promise<void> {
 }
 
 async function start(): Promise<void> {
-  // The toolbar badge counts the requests sinkhole acted on in each tab.
+  // The toolbar badge counts the requests sinkd acted on in each tab.
   // (Chrome only: Firefox has no such count.)
   if (typeof dnr.setExtensionActionOptions === "function") {
     await dnr.setExtensionActionOptions({ displayActionCountAsBadgeText: true });
@@ -232,7 +232,7 @@ async function start(): Promise<void> {
 
 // ------------------------------------------------------------- the bridge
 //
-// `sinkhole bridge install` registers a native-messaging host that sends
+// `sinkd bridge install` registers a native-messaging host that sends
 // the resolver's local allowlist, blocklist and pause, then again on every
 // change. Nothing is sent back but "send the state again". The connection
 // needs the optional nativeMessaging permission, which the popup asks for;
@@ -282,8 +282,7 @@ async function connectBridge(): Promise<void> {
     await updateBridge({
       ...bridgeNow,
       connected: false,
-      error:
-        "the browser hasn't enabled native messaging yet; reload sinkhole or restart the browser",
+      error: "the browser hasn't enabled native messaging yet; reload sinkd or restart the browser",
     });
     return;
   }
@@ -296,7 +295,7 @@ async function connectBridge(): Promise<void> {
     const state = parseBridgeMessage(message);
     if (state) {
       updateBridge({ ...state, connected: true, error: null }).catch((e) =>
-        console.error("sinkhole: bridge update failed", e),
+        console.error("sinkd: bridge update failed", e),
       );
     }
   });
@@ -320,7 +319,7 @@ async function connectBridge(): Promise<void> {
           ? updateBridge({ ...bridgeNow, connected: false, error, paused: null })
           : undefined;
       })
-      .catch((e) => console.error("sinkhole: bridge update failed", e));
+      .catch((e) => console.error("sinkd: bridge update failed", e));
   });
 }
 
@@ -331,16 +330,16 @@ function disconnectBridge(): Promise<void> {
 }
 
 // Every time the worker starts: a connection doesn't survive it.
-connectBridge().catch((e) => console.error("sinkhole: bridge failed", e));
+connectBridge().catch((e) => console.error("sinkd: bridge failed", e));
 
 chrome.permissions.onAdded.addListener((permissions) => {
   if (permissions.permissions?.includes("nativeMessaging")) {
-    connectBridge().catch((e) => console.error("sinkhole: bridge failed", e));
+    connectBridge().catch((e) => console.error("sinkd: bridge failed", e));
   }
 });
 chrome.permissions.onRemoved.addListener((permissions) => {
   if (permissions.permissions?.includes("nativeMessaging")) {
-    disconnectBridge().catch((e) => console.error("sinkhole: bridge failed", e));
+    disconnectBridge().catch((e) => console.error("sinkd: bridge failed", e));
   }
 });
 
@@ -532,7 +531,7 @@ chrome.cookies?.onChanged.addListener(({ removed, cookie }) => {
   void loadSettings().then((settings) => {
     const site = siteOf(`https://${cookie.domain.replace(/^\./, "")}/`);
     if (site !== null && featureActive(settings, "cookies", site)) {
-      chrome.cookies.set(details).catch((e) => console.error("sinkhole: cookie cap", e));
+      chrome.cookies.set(details).catch((e) => console.error("sinkd: cookie cap", e));
     }
   });
 });
@@ -724,19 +723,19 @@ if (BROWSER === "firefox") {
     navigations,
     ["blocking", "responseHeaders"],
   );
-  uncloakData().catch((e) => console.error("sinkhole: uncloak.json failed to load", e));
-  trackerSet().catch((e) => console.error("sinkhole: trackers.json failed to load", e));
+  uncloakData().catch((e) => console.error("sinkd: uncloak.json failed to load", e));
+  trackerSet().catch((e) => console.error("sinkd: trackers.json failed to load", e));
   loadSettings().catch(() => {});
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  start().catch((e) => console.error("sinkhole: setup failed", e));
+  start().catch((e) => console.error("sinkd: setup failed", e));
 });
 chrome.runtime.onStartup.addListener(() => {
-  start().catch((e) => console.error("sinkhole: setup failed", e));
+  start().catch((e) => console.error("sinkd: setup failed", e));
 });
 // Load the engine as soon as the worker starts, not on the first page.
-engine().catch((e) => console.error("sinkhole: page engine failed to load", e));
+engine().catch((e) => console.error("sinkd: page engine failed to load", e));
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
@@ -744,7 +743,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
   const respond = (work: Promise<unknown>): true => {
     work.then(sendResponse, (e) => {
-      console.error("sinkhole:", e);
+      console.error("sinkd:", e);
       sendResponse(null);
     });
     return true;

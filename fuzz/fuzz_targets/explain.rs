@@ -1,10 +1,10 @@
-//! `sinkhole check`'s matcher: arbitrary rules against a few requests.
+//! `sinkd check`'s matcher: arbitrary rules against a few requests.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sinkhole_compiler::ListInput;
-use sinkhole_compiler::explain::{Explainer, Request};
-use sinkhole_filters::network::ResourceTypes;
+use sinkd_compiler::ListInput;
+use sinkd_compiler::explain::{Explainer, Request};
+use sinkd_filters::network::ResourceTypes;
 
 const URLS: &[&str] = &[
     "https://ads.example.com/banner/ad.js?utm_source=x&id=1",

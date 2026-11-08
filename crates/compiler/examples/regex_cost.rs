@@ -2,10 +2,10 @@
 //! `MAX_REGEX_COST`. The input is JSON from the extension's regex probe:
 //! `[{"regex", "isCaseSensitive", "isSupported", "reason"}]`.
 //!
-//! `cargo run -p sinkhole-compiler --example regex_cost -- results.json`
+//! `cargo run -p sinkd-compiler --example regex_cost -- results.json`
 #![allow(clippy::unwrap_used)]
 
-use sinkhole_compiler::translate::{MAX_REGEX_COST, regex_cost};
+use sinkd_compiler::translate::{MAX_REGEX_COST, regex_cost};
 
 fn main() {
     let path = std::env::args().nth(1).expect("results.json");

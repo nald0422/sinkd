@@ -17,7 +17,7 @@
 //! still cancels hiding from "Ads".
 //!
 //! The compiler builds the index ([`PageIndexBuilder`]); the wasm engine
-//! and `sinkhole check` look things up ([`PageIndex::page`],
+//! and `sinkd check` look things up ([`PageIndex::page`],
 //! [`PageIndex::generic_css`]). No I/O here, so it builds for wasm32.
 
 use std::collections::{BTreeMap, BTreeSet};

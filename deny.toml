@@ -3,7 +3,7 @@
 
 [graph]
 all-features = true
-# The platforms sinkhole ships for. Other targets pull in crates we never
+# The platforms sinkd ships for. Other targets pull in crates we never
 # build (rustls-platform-verifier's bundled roots on wasm32, for one).
 targets = [
     "aarch64-apple-darwin",

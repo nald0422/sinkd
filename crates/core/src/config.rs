@@ -1,10 +1,10 @@
-//! Resolver configuration (`sinkhole.toml`).
+//! Resolver configuration (`sinkd.toml`).
 //!
 //! Parsing and validation are separate steps. Deserializing fills in defaults
 //! for anything left out; [`Config::validate`] then enforces the safety rules
 //! and reports every problem at once, so a user fixes the file in one pass.
 //!
-//! The rule that matters most: **sinkhole is never an open resolver.** Binding
+//! The rule that matters most: **sinkd is never an open resolver.** Binding
 //! anything other than loopback needs both `listen.allow_non_loopback = true`
 //! and a non-empty, non-universal `listen.client_allowlist`.
 
@@ -134,7 +134,7 @@ pub enum Upstream {
     Doh {
         url: String,
         /// Addresses for the URL's host. Required when the host is a name:
-        /// once sinkhole is the system resolver it cannot ask itself.
+        /// once sinkd is the system resolver it cannot ask itself.
         #[serde(default)]
         bootstrap: Vec<IpAddr>,
     },
@@ -252,7 +252,7 @@ pub struct Updates {
     /// Where downloaded lists are kept, so the resolver starts with them
     /// and keeps them when a download fails. Relative paths are resolved
     /// against the config file's directory. Unset: the platform's cache
-    /// directory (`~/Library/Caches/sinkhole`, `~/.cache/sinkhole`).
+    /// directory (`~/Library/Caches/sinkd`, `~/.cache/sinkd`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_dir: Option<PathBuf>,
 }
@@ -320,7 +320,7 @@ impl Default for Metrics {
     }
 }
 
-/// The control socket that `sinkhole stats`, `pause` and the browser
+/// The control socket that `sinkd stats`, `pause` and the browser
 /// bridge use.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -499,7 +499,7 @@ impl Config {
                         if !host_is_ip && bootstrap.is_empty() {
                             fail(format!(
                                 "{host} is a name, so `bootstrap` addresses are required \
-                                 (sinkhole cannot resolve its own upstream)"
+                                 (sinkd cannot resolve its own upstream)"
                             ));
                         }
                     }
@@ -522,7 +522,7 @@ impl Config {
                 l.port() == addr.port() && (l.ip() == addr.ip() || l.ip().is_unspecified())
             });
         if loops {
-            fail(format!("{addr} is one of sinkhole's own listen addresses"));
+            fail(format!("{addr} is one of sinkd's own listen addresses"));
         }
     }
 
@@ -639,7 +639,7 @@ mod tests {
             refresh_hours = 6
 
             [[list]]
-            path = "/etc/sinkhole/allow.txt"
+            path = "/etc/sinkd/allow.txt"
             action = "allow"
             enabled = false
 

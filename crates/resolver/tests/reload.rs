@@ -9,11 +9,11 @@ use std::time::{Duration, Instant};
 
 use hickory_proto::op::{Message, Query};
 use hickory_proto::rr::{Name, RData, RecordType};
-use sinkhole_core::config::Config;
-use sinkhole_filters::Env;
-use sinkhole_lists::testing::{Response, TestServer};
-use sinkhole_lists::{Cache, Fetcher};
-use sinkhole_resolver::{ReloadHandle, Reloader, Server, from_config};
+use sinkd_core::config::Config;
+use sinkd_filters::Env;
+use sinkd_lists::testing::{Response, TestServer};
+use sinkd_lists::{Cache, Fetcher};
+use sinkd_resolver::{ReloadHandle, Reloader, Server, from_config};
 use tokio::net::UdpSocket;
 use tokio::task::JoinHandle;
 
@@ -39,7 +39,7 @@ struct Scratch(PathBuf);
 impl Scratch {
     fn new(name: &str) -> Scratch {
         let dir = std::env::temp_dir().join(format!(
-            "sinkhole-reload-{name}-{}-{:?}",
+            "sinkd-reload-{name}-{}-{:?}",
             std::process::id(),
             Instant::now()
         ));
@@ -86,7 +86,7 @@ impl Drop for Daemon {
 }
 
 async fn start(dir: &Scratch, fetcher: Fetcher) -> Daemon {
-    let config_path = dir.path("sinkhole.toml");
+    let config_path = dir.path("sinkd.toml");
     let config = Config::from_toml(&std::fs::read_to_string(&config_path).unwrap()).unwrap();
     let cache = dir.cache();
     let setup = from_config(&config, &dir.0, &cache).unwrap();
@@ -158,7 +158,7 @@ async fn settle() {
 
 fn local_list_config(dir: &Scratch, block: &str) {
     dir.write(
-        "sinkhole.toml",
+        "sinkd.toml",
         &format!("block = [{block}]\n{CONFIG_TAIL}\n[[list]]\npath = \"list.txt\"\n"),
     );
 }
@@ -232,7 +232,7 @@ async fn config_edits_apply_and_broken_ones_are_ignored() {
         format!("block = [\"c.example\", \"not a name\"]\n{CONFIG_TAIL}"),
         format!("block = [\"c.example\"]\n{CONFIG_TAIL}\n[[list]]\npath = \"missing.txt\"\n"),
     ] {
-        dir.write("sinkhole.toml", &broken);
+        dir.write("sinkd.toml", &broken);
         settle().await;
         assert!(blocked(&daemon, "b.example").await, "kept after: {broken}");
         assert!(blocked(&daemon, "listed.example").await);
@@ -258,7 +258,7 @@ async fn reload_request_rereads_files() {
 
 fn url_list_config(dir: &Scratch, server: &TestServer) {
     dir.write(
-        "sinkhole.toml",
+        "sinkd.toml",
         &format!(
             "{CONFIG_TAIL}\n[[list]]\nname = \"remote\"\nurl = \"{}\"\n",
             server.url("/list.txt")
@@ -352,13 +352,13 @@ async fn an_update_run_beside_the_daemon_takes_effect() {
     })
     .await;
 
-    // What `sinkhole update` does: refresh into the same cache from another
+    // What `sinkd update` does: refresh into the same cache from another
     // process. The daemon's own schedule is a day away.
     server.set(
         "/list.txt",
         Response::list("||remote.example^\n||cli.example^\n"),
     );
-    let reports = sinkhole_lists::update(
+    let reports = sinkd_lists::update(
         &server.fetcher(),
         &dir.cache(),
         &server.url("/list.txt"),

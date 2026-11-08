@@ -21,7 +21,7 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use sinkhole_core::page::PageIndex;
+use sinkd_core::page::PageIndex;
 
 static INPUT: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 static OUTPUT: Mutex<Vec<u8>> = Mutex::new(Vec::new());
@@ -142,7 +142,7 @@ fn push_json_string(out: &mut String, s: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sinkhole_core::page::{GENERICHIDE, PageIndexBuilder};
+    use sinkd_core::page::{GENERICHIDE, PageIndexBuilder};
 
     fn index() -> Vec<u8> {
         let mut b = PageIndexBuilder::new();

@@ -15,10 +15,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::Serialize;
-use sinkhole_core::Scope;
-use sinkhole_filters::dns::{DnsAction, DnsFormat, parse_dns_line};
-use sinkhole_filters::network::{Party, ResourceTypes};
-use sinkhole_filters::{Env, Line, Lines, NetworkRule, Rule, is_comment, parse_rule};
+use sinkd_core::Scope;
+use sinkd_filters::dns::{DnsAction, DnsFormat, parse_dns_line};
+use sinkd_filters::network::{Party, ResourceTypes};
+use sinkd_filters::{Env, Line, Lines, NetworkRule, Rule, is_comment, parse_rule};
 
 use crate::dnr::{self, ActionType};
 use crate::page::{PageOutput, PageTarget};

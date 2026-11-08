@@ -1,4 +1,4 @@
-! Title: sinkhole surrogates (ads)
+! Title: sinkd surrogates (ads)
 ! License: MIT OR Apache-2.0
 !
 ! Serves bundled stand-ins for common ad scripts instead of blocking them

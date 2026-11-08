@@ -59,7 +59,7 @@ pub fn addresses(message: &Message) -> Vec<IpAddr> {
         .collect()
 }
 
-/// Waits until `server` answers a query for `localhost.`, which sinkhole
+/// Waits until `server` answers a query for `localhost.`, which sinkd
 /// answers itself, without an upstream.
 pub fn wait_ready(server: SocketAddr, within: Duration) -> bool {
     let deadline = Instant::now() + within;

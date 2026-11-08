@@ -3,17 +3,17 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sinkhole_filters::{Rule, parse_rule};
+use sinkd_filters::{Rule, parse_rule};
 
 fuzz_target!(|line: &str| {
     match parse_rule(line) {
         Ok(Rule::Network(rule)) => {
-            let _ = sinkhole_compiler::translate::translate_network(&rule);
+            let _ = sinkd_compiler::translate::translate_network(&rule);
             let _ = rule.pattern.hostname();
             let _ = rule.pattern.pure_hostname();
         }
         Ok(Rule::ResponseHeader(rule)) => {
-            let _ = sinkhole_compiler::translate::translate_response_header(&rule);
+            let _ = sinkd_compiler::translate::translate_response_header(&rule);
         }
         Ok(Rule::Cosmetic(rule)) => {
             let _ = rule.selector.as_css();

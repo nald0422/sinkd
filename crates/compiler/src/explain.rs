@@ -1,5 +1,5 @@
 //! What the lists say about one request: the network side of
-//! `sinkhole check <url>`.
+//! `sinkd check <url>`.
 //!
 //! This evaluates the *source* filter rules, with the usual adblock
 //! precedence, so the answer names the rule and the list line responsible.
@@ -26,12 +26,12 @@
 use std::collections::HashSet;
 
 use regex::{Regex, RegexBuilder};
-use sinkhole_core::page::{TWO_LABEL_SUFFIXES, host_keys};
-use sinkhole_filters::network::{
+use sinkd_core::page::{TWO_LABEL_SUFFIXES, host_keys};
+use sinkd_filters::network::{
     Action, Anchor, ParamMatch, Party, ResourceTypes, StrictParty, UrlPattern,
 };
-use sinkhole_filters::{DomainSpec, HostPattern};
-use sinkhole_filters::{Env, Line, Lines, NetworkRule, Rule, is_comment, parse_rule};
+use sinkd_filters::{DomainSpec, HostPattern};
+use sinkd_filters::{Env, Line, Lines, NetworkRule, Rule, is_comment, parse_rule};
 
 use crate::compile::ListInput;
 use crate::translate::{Skip, translate_network};

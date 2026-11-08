@@ -1,4 +1,4 @@
-# sinkhole
+# sinkd
 
 A Rust ad blocker and anti-tracking tool in three parts that share one rule
 engine:
@@ -34,10 +34,10 @@ The extension:
 
 The command line:
 - installs the resolver as a system service and points the system's DNS
-  at it (`sudo sinkhole install`), and puts everything back exactly as it
-  was (`sudo sinkhole uninstall`);
+  at it (`sudo sinkd install`), and puts everything back exactly as it
+  was (`sudo sinkd uninstall`);
 - explains what happens to any name or URL, and which rule decides it
-  (`sinkhole check`);
+  (`sinkd check`);
 - pauses blocking, edits the local allowlist and blocklist, shows
   counters, and checks the whole setup (`pause`, `allow`, `block`,
   `stats`, `doctor`);
@@ -45,7 +45,7 @@ The command line:
   the optional browser bridge.
 
 Nothing changes your system's DNS settings or your browsers unless you run
-`sinkhole install` or `sinkhole bridge install` (or load the extension)
+`sinkd install` or `sinkd bridge install` (or load the extension)
 yourself.
 
 ## Honest expectations
@@ -56,7 +56,7 @@ yourself.
 - **Out of reach, plainly:** your IP address (use a VPN or Tor), first-party
   tracking while you are logged in, server-side tracking, and behavioral
   fingerprinting.
-- **Over-aggressive spoofing makes a browser *more* unique.** sinkhole prefers
+- **Over-aggressive spoofing makes a browser *more* unique.** sinkd prefers
   blending in to randomizing everything. It never spoofs the user agent or
   platform.
 - **Ad-blocker detection is an arms race.** Rules update without a new
@@ -68,7 +68,7 @@ yourself.
   never loaded. Defeating detection is the extension's job.
 - **Encrypted DNS hides your queries from the network, not from the
   upstream.** Quad9 (or whichever resolver you configure) still sees every
-  name sinkhole does not block or answer from its cache.
+  name sinkd does not block or answer from its cache.
 - **Same-domain ads (e.g. YouTube)** cannot be blocked by DNS. The extension
   handles them best-effort through community rules only.
 
@@ -81,7 +81,7 @@ crates/lists     fetch lists over HTTPS, check them, keep the last good copy
 crates/compiler  lists → Chrome rulesets, surrogates, cosmetic index, scriptlets, the resolver's domain set, a report
 crates/engine-wasm  the cosmetic lookup, built for wasm32, for the extension's background script
 crates/resolver  the DNS daemon: block, forward, serve UDP and TCP, hot reload
-crates/cli       the `sinkhole` binary
+crates/cli       the `sinkd` binary
 extension/       the MV3 extension for Chromium and Firefox (TypeScript glue over compiled rules)
 testbed/         local pages that detect blockers and track, and the harness that loads them
 fuzz/            fuzz targets for the parsers, the DNS handling and the config
@@ -107,7 +107,7 @@ cargo bench --workspace
 ```
 
 ```bash
-cargo run --release -p sinkhole-filters --example dns_budget
+cargo run --release -p sinkd-filters --example dns_budget
 ```
 
 The last command checks the resolver matcher against its budgets with 1M
@@ -126,16 +126,16 @@ works too. To see how real filter lists parse, download them yourself
 and run:
 
 ```bash
-cargo run --release -p sinkhole-filters --example coverage -- --oracle easylist.txt easyprivacy.txt
+cargo run --release -p sinkd-filters --example coverage -- --oracle easylist.txt easyprivacy.txt
 ```
 
 ## Try the resolver
 
-This runs sinkhole on port 5300. It only listens; nothing on the machine uses
+This runs sinkd on port 5300. It only listens; nothing on the machine uses
 it unless you point a query at it, and Ctrl-C stops it.
 
 ```bash
-cargo run --release -p sinkhole-cli -- run --config config/dev.toml
+cargo run --release -p sinkd-cli -- run --config config/dev.toml
 ```
 
 In another terminal:
@@ -148,7 +148,7 @@ dig @127.0.0.1 -p 5300 doubleclick.net
 dig @127.0.0.1 -p 5300 example.com
 ```
 
-The first answers `0.0.0.0` from sinkhole itself. The second is forwarded to
+The first answers `0.0.0.0` from sinkd itself. The second is forwarded to
 Quad9 over DNS-over-HTTPS, and asked again it comes from the cache.
 `RUST_LOG=debug` adds per-query detail, which is off by default.
 
@@ -166,7 +166,7 @@ What else it does:
   internet.
 - **No bypass.** Firefox's DoH canary (`use-application-dns.net`) and
   encrypted-resolver discovery (`resolver.arpa`) are answered so that apps
-  keep using sinkhole.
+  keep using sinkd.
 
 Edit `config/dev-blocklist.txt` or `config/dev.toml` while it runs: changes
 apply within two seconds, and a broken edit is logged and ignored while the
@@ -175,43 +175,43 @@ previous rules keep working. `kill -HUP` applies changes at once.
 Throughput and latency over loopback sockets, and the cost of a reload:
 
 ```bash
-cargo run --release -p sinkhole-resolver --example loadgen
+cargo run --release -p sinkd-resolver --example loadgen
 ```
 
 ```bash
-cargo run --release -p sinkhole-resolver --example reload
+cargo run --release -p sinkd-resolver --example reload
 ```
 
 ## Install it system-wide
 
-This makes sinkhole the DNS resolver for every app on the machine. macOS
+This makes sinkd the DNS resolver for every app on the machine. macOS
 (primary) and Linux with systemd. It needs sudo, and it changes your DNS
 settings, so look at what it would do first:
 
 ```bash
-cargo build --release -p sinkhole-cli
+cargo build --release -p sinkd-cli
 ```
 
 ```bash
-./target/release/sinkhole install --dry-run
+./target/release/sinkd install --dry-run
 ```
 
 Then, when you're ready:
 
 ```bash
-sudo ./target/release/sinkhole install
+sudo ./target/release/sinkd install
 ```
 
 What it does, in this order:
 
-1. Copies the binary to `/usr/local/bin/sinkhole` and writes a config
-   (`/usr/local/etc/sinkhole/sinkhole.toml` on macOS,
-   `/etc/sinkhole/sinkhole.toml` on Linux) with EasyList, EasyPrivacy and
+1. Copies the binary to `/usr/local/bin/sinkd` and writes a config
+   (`/usr/local/etc/sinkd/sinkd.toml` on macOS,
+   `/etc/sinkd/sinkd.toml` on Linux) with EasyList, EasyPrivacy and
    uBlock Origin's badware list, and Quad9 then Cloudflare over
    DNS-over-HTTPS. An existing config is kept.
 2. Starts the resolver as a service that never runs as root:
    - macOS: a launchd daemon binds port 53, then hands the sockets to an
-     unprivileged `_sinkhole` user it creates;
+     unprivileged `_sinkd` user it creates;
    - Linux: a sandboxed systemd unit with a dynamic user.
 3. Waits until the resolver answers. Only then does it save your current
    DNS settings and point them at 127.0.0.1 and ::1:
@@ -222,35 +222,35 @@ What it does, in this order:
 To undo all of it, restoring the DNS settings exactly as they were:
 
 ```bash
-sudo sinkhole uninstall
+sudo sinkd uninstall
 ```
 
 `--purge` also removes the config. A DNS setting you changed yourself after
-install is left alone. `sinkhole doctor` checks the whole chain and says
+install is left alone. `sinkd doctor` checks the whole chain and says
 what to fix.
 
 ## The command line
 
 | Command | What it does |
 |---|---|
-| `sinkhole check ads.example.com` | What the resolver and the extension do with a name, and which list entry or filter rule decides it. |
-| `sinkhole check https://site.com/page` | The same for a page, plus the hiding rules and scriptlets that run on it. |
-| `sinkhole check URL --from PAGE --type script` | A subresource of a page. |
-| `sinkhole stats` | Counters from the running resolver: queries, blocks, cache, upstream health. |
-| `sinkhole stats --top 10 --recent 20` | The most frequent and the latest names (needs the query log). |
-| `sinkhole pause --for 5m` | Pause blocking, for everything (and the browser, with the bridge). Without `--for`, until `resume`. |
-| `sinkhole resume` | Blocking back on. |
-| `sinkhole allow add NAME…` / `rm` / `list` | The local allowlist, which beats every list. `*.example.com` means names below it only. |
-| `sinkhole block add NAME…` / `rm` / `list` | The local blocklist. |
-| `sinkhole update` | Check every list for a new version now. |
-| `sinkhole doctor` | Check the setup end to end. |
-| `sinkhole install` / `uninstall` | See above. |
-| `sinkhole bridge install` / `uninstall` / `status` | The browser bridge, below. |
-| `sinkhole run` | The resolver in the foreground. |
-| `sinkhole compile` | Lists into the extension's rules. |
+| `sinkd check ads.example.com` | What the resolver and the extension do with a name, and which list entry or filter rule decides it. |
+| `sinkd check https://site.com/page` | The same for a page, plus the hiding rules and scriptlets that run on it. |
+| `sinkd check URL --from PAGE --type script` | A subresource of a page. |
+| `sinkd stats` | Counters from the running resolver: queries, blocks, cache, upstream health. |
+| `sinkd stats --top 10 --recent 20` | The most frequent and the latest names (needs the query log). |
+| `sinkd pause --for 5m` | Pause blocking, for everything (and the browser, with the bridge). Without `--for`, until `resume`. |
+| `sinkd resume` | Blocking back on. |
+| `sinkd allow add NAME…` / `rm` / `list` | The local allowlist, which beats every list. `*.example.com` means names below it only. |
+| `sinkd block add NAME…` / `rm` / `list` | The local blocklist. |
+| `sinkd update` | Check every list for a new version now. |
+| `sinkd doctor` | Check the setup end to end. |
+| `sinkd install` / `uninstall` | See above. |
+| `sinkd bridge install` / `uninstall` / `status` | The browser bridge, below. |
+| `sinkd run` | The resolver in the foreground. |
+| `sinkd compile` | Lists into the extension's rules. |
 
 Every command reads the installed config unless you pass `--config` (or set
-`SINKHOLE_CONFIG`). `pause`, `resume` and the query log answer only to root,
+`SINKD_CONFIG`). `pause`, `resume` and the query log answer only to root,
 the service's own user and the user ids in `control.users`. The installer
 adds the user who ran it. Anyone may read the counters.
 
@@ -263,17 +263,17 @@ only.
 
 ## The browser bridge
 
-Optional. It lets `sinkhole allow`, `block` and `pause` reach the extension,
+Optional. It lets `sinkd allow`, `block` and `pause` reach the extension,
 so a name you allow or block on the command line is allowed or blocked in
 the browser too. Run it as yourself, not with sudo. Firefox needs nothing
 else; for Chrome, Edge, Brave or Arc, pass the extension's ID from the
 browser's extensions page:
 
 ```bash
-sinkhole bridge install --chrome-id <the extension's ID>
+sinkd bridge install --chrome-id <the extension's ID>
 ```
 
-Then choose **Connect** under "sinkhole on this computer" in the
+Then choose **Connect** under "sinkd on this computer" in the
 extension's popup, which asks for the browser's permission. It writes one
 small file per browser and a launcher script in your home directory. It
 works one way only: the extension learns the lists and the pause, and can
@@ -282,13 +282,13 @@ change nothing on the computer.
 To undo it:
 
 ```bash
-sinkhole bridge uninstall
+sinkd bridge uninstall
 ```
 
 ## Lists from the web
 
 A list with a `url` is downloaded over HTTPS and kept in a cache directory
-(`~/Library/Caches/sinkhole` on macOS, `~/.cache/sinkhole` on Linux, or
+(`~/Library/Caches/sinkd` on macOS, `~/.cache/sinkd` on Linux, or
 `updates.cache_dir`):
 
 ```toml
@@ -312,7 +312,7 @@ url = "https://example.org/hosts.txt"
 To check every list now, for example before the first start:
 
 ```bash
-cargo run --release -p sinkhole-cli -- update --config config/dev.toml
+cargo run --release -p sinkd-cli -- update --config config/dev.toml
 ```
 
 A running resolver picks up what `update` downloads within seconds. `update
@@ -336,7 +336,7 @@ npm run build
 npm run build:firefox
 ```
 
-`npm run build` runs `sinkhole compile`, which downloads the lists named in
+`npm run build` runs `sinkd compile`, which downloads the lists named in
 `extension/rulesets.toml` (EasyList, EasyPrivacy, uBlock Origin's lists) and
 compiles them. It writes the unpacked Chrome extension to `extension/dist/`
 and a full account of what could not be translated, and why, to
@@ -348,7 +348,7 @@ unpacked** and pick `extension/dist/`. That installs it in your browser
 profile, so it is your call. **Remove** on the same page undoes it,
 including the one browser setting it changes (WebRTC's IP handling, which
 Chrome restores when the extension goes). The toolbar popup switches
-sinkhole, or one privacy feature, off for the current site, or turns off
+sinkd, or one privacy feature, off for the current site, or turns off
 one kind of protection everywhere.
 
 Besides blocking, it strips cookies and the referrer from tracker
@@ -407,14 +407,14 @@ build names them and their licenses.
 
 ## Recovery
 
-`sudo sinkhole uninstall` restores the DNS settings exactly as they were
-before install. If sinkhole is broken and DNS stops working, use one of
+`sudo sinkd uninstall` restores the DNS settings exactly as they were
+before install. If sinkd is broken and DNS stops working, use one of
 these one-liners.
 
-macOS, exact restore without sinkhole (install wrote this script):
+macOS, exact restore without sinkd (install wrote this script):
 
 ```bash
-sudo sh '/Library/Application Support/sinkhole/restore-dns.sh'
+sudo sh '/Library/Application Support/sinkd/restore-dns.sh'
 ```
 
 macOS, last resort: every network service back to automatic DNS:
@@ -426,15 +426,15 @@ networksetup -listallnetworkservices | tail -n +2 | tr -d '*' | while IFS= read 
 Linux, exact restore:
 
 ```bash
-sudo sh /var/lib/sinkhole/restore-dns.sh
+sudo sh /var/lib/sinkd/restore-dns.sh
 ```
 
-Without an install, the only thing sinkhole writes outside this repository
+Without an install, the only thing sinkd writes outside this repository
 is the cache of downloaded lists. This removes it on macOS (on Linux it is
-`~/.cache/sinkhole`):
+`~/.cache/sinkd`):
 
 ```bash
-rm -rf ~/Library/Caches/sinkhole
+rm -rf ~/Library/Caches/sinkd
 ```
 
 To check sites by hand after a change, see

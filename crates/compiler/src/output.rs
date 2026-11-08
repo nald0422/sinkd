@@ -113,7 +113,7 @@ pub fn write(compiled: &Compiled, manifest: &Manifest, out: &Path) -> io::Result
     // How the extension tells a site from its public suffix.
     fs::write(
         out.join("suffixes.json"),
-        pretty(&sinkhole_core::page::TWO_LABEL_SUFFIXES)?,
+        pretty(&sinkd_core::page::TWO_LABEL_SUFFIXES)?,
     )?;
 
     let page = out.join("page");

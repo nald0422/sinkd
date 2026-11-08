@@ -36,7 +36,7 @@ use hickory_proto::op::{Message, ResponseCode};
 use hickory_proto::rr::rdata::opt::{EdnsCode, EdnsOption};
 use hickory_proto::rr::{Name, RData, RecordType};
 use hickory_proto::serialize::binary::DecodeError;
-use sinkhole_core::config::Upstream as UpstreamConfig;
+use sinkd_core::config::Upstream as UpstreamConfig;
 use tracing::debug;
 
 pub use tls::Roots;
@@ -128,7 +128,7 @@ impl Transport {
     }
 }
 
-/// How an upstream is doing, for `sinkhole stats` and `/metrics`.
+/// How an upstream is doing, for `sinkd stats` and `/metrics`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct UpstreamStatus {
     pub upstream: String,
@@ -367,7 +367,7 @@ impl Upstreams {
 
     /// The addresses of `host`, asked of the upstreams directly. This is how
     /// list servers are found: not through the system resolver, which may
-    /// be sinkhole itself, and not against the lists. IPv4 first; the HTTP
+    /// be sinkd itself, and not against the lists. IPv4 first; the HTTP
     /// client races the families anyway (Happy Eyeballs).
     pub async fn lookup_ip(&self, host: &str) -> io::Result<Vec<IpAddr>> {
         let mut name = Name::from_ascii(host)

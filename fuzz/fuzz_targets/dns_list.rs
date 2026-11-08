@@ -3,8 +3,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sinkhole_filters::Env;
-use sinkhole_filters::dns::{DnsAction, DnsFormat, DnsListBuilder};
+use sinkd_filters::Env;
+use sinkd_filters::dns::{DnsAction, DnsFormat, DnsListBuilder};
 
 fuzz_target!(|data: &[u8]| {
     let Some((&selector, rest)) = data.split_first() else {

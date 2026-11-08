@@ -1215,21 +1215,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
-name = "sinkhole-compiler"
+name = "sinkd-compiler"
 version = "0.1.0"
 dependencies = [
  "regex",
  "regex-syntax",
  "serde",
  "serde_json",
- "sinkhole-core",
- "sinkhole-filters",
+ "sinkd-core",
+ "sinkd-filters",
  "thiserror",
  "toml",
 ]
 
 [[package]]
-name = "sinkhole-core"
+name = "sinkd-core"
 version = "0.1.0"
 dependencies = [
  "ahash",
@@ -1244,44 +1244,44 @@ dependencies = [
 ]
 
 [[package]]
-name = "sinkhole-filters"
+name = "sinkd-filters"
 version = "0.1.0"
 dependencies = [
  "memchr",
  "serde",
- "sinkhole-core",
+ "sinkd-core",
  "thiserror",
 ]
 
 [[package]]
-name = "sinkhole-fuzz"
+name = "sinkd-fuzz"
 version = "0.0.0"
 dependencies = [
  "hickory-proto",
  "libfuzzer-sys",
  "serde_json",
- "sinkhole-compiler",
- "sinkhole-core",
- "sinkhole-filters",
- "sinkhole-resolver",
+ "sinkd-compiler",
+ "sinkd-core",
+ "sinkd-filters",
+ "sinkd-resolver",
 ]
 
 [[package]]
-name = "sinkhole-lists"
+name = "sinkd-lists"
 version = "0.1.0"
 dependencies = [
  "reqwest",
  "rustls",
  "serde",
  "serde_json",
- "sinkhole-core",
- "sinkhole-filters",
+ "sinkd-core",
+ "sinkd-filters",
  "thiserror",
  "tracing",
 ]
 
 [[package]]
-name = "sinkhole-resolver"
+name = "sinkd-resolver"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
@@ -1293,9 +1293,9 @@ dependencies = [
  "rustls-platform-verifier",
  "serde",
  "serde_json",
- "sinkhole-core",
- "sinkhole-filters",
- "sinkhole-lists",
+ "sinkd-core",
+ "sinkd-filters",
+ "sinkd-lists",
  "socket2",
  "thiserror",
  "tokio",

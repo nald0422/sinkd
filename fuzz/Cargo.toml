@@ -1,7 +1,7 @@
 # Fuzz targets, in cargo-fuzz's layout: `cargo fuzz run <target>` works
 # with nightly, and `./run.sh` builds and runs them on stable (see it).
 [package]
-name = "sinkhole-fuzz"
+name = "sinkd-fuzz"
 version = "0.0.0"
 edition = "2024"
 publish = false
@@ -18,10 +18,10 @@ members = ["."]
 hickory-proto = { version = "0.26.3", default-features = false, features = ["std"] }
 libfuzzer-sys = "0.4"
 serde_json = "1.0.154"
-sinkhole-compiler = { path = "../crates/compiler" }
-sinkhole-core = { path = "../crates/core", features = ["config", "page"] }
-sinkhole-filters = { path = "../crates/filters" }
-sinkhole-resolver = { path = "../crates/resolver" }
+sinkd-compiler = { path = "../crates/compiler" }
+sinkd-core = { path = "../crates/core", features = ["config", "page"] }
+sinkd-filters = { path = "../crates/filters" }
+sinkd-resolver = { path = "../crates/resolver" }
 
 [profile.release]
 debug = 1

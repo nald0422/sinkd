@@ -1,4 +1,4 @@
-# What the extension's static rulesets are built from, by `sinkhole compile`.
+# What the extension's static rulesets are built from, by `sinkd compile`.
 #
 # Each ruleset can be switched off on its own in the extension. Every
 # $removeparam rule goes to `params`, whichever list it came from, so

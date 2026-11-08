@@ -1,6 +1,6 @@
 [package]
-name = "sinkhole-lists"
-description = "Fetching, caching and checking filter lists for sinkhole."
+name = "sinkd-lists"
+description = "Fetching, caching and checking filter lists for sinkd."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -20,8 +20,8 @@ reqwest = { workspace = true }
 rustls = { workspace = true }
 serde.workspace = true
 serde_json.workspace = true
-sinkhole-core = { workspace = true, features = ["config"] }
-sinkhole-filters.workspace = true
+sinkd-core = { workspace = true, features = ["config"] }
+sinkd-filters.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
@@ -31,7 +31,7 @@ tokio = { workspace = true, optional = true, features = ["io-util", "macros", "n
 tokio-rustls = { workspace = true, optional = true }
 
 [dev-dependencies]
-sinkhole-lists = { path = ".", features = ["testing"] }
+sinkd-lists = { path = ".", features = ["testing"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 toml.workspace = true
 

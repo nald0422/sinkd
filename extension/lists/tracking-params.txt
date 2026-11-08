@@ -1,4 +1,4 @@
-! Title: sinkhole tracking parameters
+! Title: sinkd tracking parameters
 ! License: MIT OR Apache-2.0
 !
 ! Removes tracking parameters from page and background-request URLs.

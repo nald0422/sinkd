@@ -5,9 +5,9 @@
 
 use hickory_proto::op::Message;
 use libfuzzer_sys::fuzz_target;
-use sinkhole_core::config::{Blocking, SpecialNames};
-use sinkhole_core::{Domain, DomainMatcher, Scope};
-use sinkhole_resolver::{Decision, Engine, Transport, UDP_PAYLOAD};
+use sinkd_core::config::{Blocking, SpecialNames};
+use sinkd_core::{Domain, DomainMatcher, Scope};
+use sinkd_resolver::{Decision, Engine, Transport, UDP_PAYLOAD};
 use std::sync::OnceLock;
 
 fn engine() -> &'static Engine {

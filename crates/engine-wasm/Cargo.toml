@@ -1,5 +1,5 @@
 [package]
-name = "sinkhole-engine-wasm"
+name = "sinkd-engine-wasm"
 description = "The page index lookup, built for wasm32 and called from the extension's service worker."
 version.workspace = true
 edition.workspace = true
@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 bench = false
 
 [dependencies]
-sinkhole-core = { workspace = true, features = ["page"] }
+sinkd-core = { workspace = true, features = ["page"] }
 
 [lints.rust]
 # Exports need `#[unsafe(no_mangle)]`; see lib.rs. Nothing else is unsafe.

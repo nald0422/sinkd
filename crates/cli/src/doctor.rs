@@ -1,4 +1,4 @@
-//! `sinkhole doctor`: is everything wired up, and if not, what to do.
+//! `sinkd doctor`: is everything wired up, and if not, what to do.
 //!
 //! Each check prints one line: `ok`, `warn` (works, but worth a look) or
 //! `FAIL` (broken), with the fix. It changes nothing. It sends a few DNS
@@ -36,7 +36,7 @@ impl Report {
 
 pub fn doctor(config_path: &Path) -> Result<()> {
     let mut r = Report::default();
-    println!("sinkhole doctor\n");
+    println!("sinkd doctor\n");
 
     let config = match crate::load_config(config_path) {
         Ok((config, _, _)) => {
@@ -65,7 +65,7 @@ pub fn doctor(config_path: &Path) -> Result<()> {
         Err(e) => {
             r.fail(
                 "config",
-                format!("{e:#}; install with `sudo sinkhole install`, or pass --config"),
+                format!("{e:#}; install with `sudo sinkd install`, or pass --config"),
             );
             None
         }
@@ -83,12 +83,12 @@ pub fn doctor(config_path: &Path) -> Result<()> {
             if status.paused.is_some() {
                 r.warn(
                     "resolver",
-                    format!("{line}; `sinkhole resume` turns it back on"),
+                    format!("{line}; `sinkd resume` turns it back on"),
                 );
             } else if status.block_entries == 0 {
                 r.warn(
                     "resolver",
-                    format!("{line}; lists not downloaded yet? `sinkhole update`"),
+                    format!("{line}; lists not downloaded yet? `sinkd update`"),
                 );
             } else {
                 r.ok("resolver", line);
@@ -168,31 +168,31 @@ fn service(r: &mut Report) {
                 } else {
                     r.fail(
                         "service",
-                        format!("launchd job is {state}; see /Library/Logs/sinkhole.log"),
+                        format!("launchd job is {state}; see /Library/Logs/sinkd.log"),
                     );
                 }
             }
             _ => r.warn(
                 "service",
-                "not installed as a service (`sudo sinkhole install`)",
+                "not installed as a service (`sudo sinkd install`)",
             ),
         }
     } else {
         match std::process::Command::new("systemctl")
-            .args(["is-active", "sinkhole.service"])
+            .args(["is-active", "sinkd.service"])
             .output()
         {
             Ok(out) => {
                 let state = String::from_utf8_lossy(&out.stdout).trim().to_owned();
                 match state.as_str() {
-                    "active" => r.ok("service", "systemd unit sinkhole.service is active"),
+                    "active" => r.ok("service", "systemd unit sinkd.service is active"),
                     "inactive" | "unknown" | "" => r.warn(
                         "service",
-                        "not installed as a service (`sudo sinkhole install`)",
+                        "not installed as a service (`sudo sinkd install`)",
                     ),
                     other => r.fail(
                         "service",
-                        format!("sinkhole.service is {other}; see `journalctl -u sinkhole`"),
+                        format!("sinkd.service is {other}; see `journalctl -u sinkd`"),
                     ),
                 }
             }
@@ -246,7 +246,7 @@ fn queries(r: &mut Report, addr: SocketAddr, sample: Option<&str>) {
         ),
         Ok(_) => r.warn(
             "Firefox canary",
-            "use-application-dns.net resolves: Firefox may use its own DNS-over-HTTPS and bypass sinkhole",
+            "use-application-dns.net resolves: Firefox may use its own DNS-over-HTTPS and bypass sinkd",
         ),
         Err(e) => r.warn("Firefox canary", format!("{e:#}")),
     }
@@ -286,7 +286,7 @@ fn system_dns(r: &mut Report) {
             r.fail(
                 "system DNS",
                 format!(
-                    "no service uses sinkhole: {}; `sudo sinkhole install`",
+                    "no service uses sinkd: {}; `sudo sinkd install`",
                     other.join(", ")
                 ),
             );
@@ -294,7 +294,7 @@ fn system_dns(r: &mut Report) {
             r.warn(
                 "system DNS",
                 format!(
-                    "not using sinkhole: {}; `sudo sinkhole install` points them too",
+                    "not using sinkd: {}; `sudo sinkd install` points them too",
                     other.join(", ")
                 ),
             );
@@ -302,15 +302,15 @@ fn system_dns(r: &mut Report) {
     } else {
         match install::linux::detect(&mut sys) {
             Ok(install::linux::Resolver::Resolved) => {
-                if Path::new("/etc/systemd/resolved.conf.d/sinkhole.conf").exists() {
+                if Path::new("/etc/systemd/resolved.conf.d/sinkd.conf").exists() {
                     r.ok(
                         "system DNS",
-                        "systemd-resolved forwards every name to sinkhole",
+                        "systemd-resolved forwards every name to sinkd",
                     );
                 } else {
                     r.fail(
                         "system DNS",
-                        "systemd-resolved does not use sinkhole; `sudo sinkhole install`",
+                        "systemd-resolved does not use sinkd; `sudo sinkd install`",
                     );
                 }
             }
@@ -353,7 +353,7 @@ fn bridge(r: &mut Report) {
         .map(|b| b.name)
         .collect();
     if installed.is_empty() {
-        println!("  info  browser bridge: not set up (optional; `sinkhole bridge install`)");
+        println!("  info  browser bridge: not set up (optional; `sinkd bridge install`)");
     } else {
         r.ok(
             "browser bridge",

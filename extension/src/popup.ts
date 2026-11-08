@@ -1,8 +1,8 @@
-// The toolbar popup: switch sinkhole, or one privacy feature, off for the
+// The toolbar popup: switch sinkd, or one privacy feature, off for the
 // current site; or a kind of protection off everywhere. It only talks to
 // the background script, asks for site access back if the user took it
 // away (Chrome's site access menu, Firefox's add-on permissions), and
-// connects the bridge to the sinkhole command line when asked to.
+// connects the bridge to the sinkd command line when asked to.
 
 import { browserOf, type Request, type State } from "./core.js";
 
@@ -41,7 +41,7 @@ function switchItem(
   box.type = "checkbox";
   box.checked = checked;
   box.onchange = () => {
-    onChange(box.checked).catch((e) => console.error("sinkhole popup:", e));
+    onChange(box.checked).catch((e) => console.error("sinkd popup:", e));
   };
   const text = document.createElement("span");
   text.textContent = name;
@@ -72,7 +72,7 @@ function render(state: State, tab: chrome.tabs.Tab | undefined): void {
     siteToggle.disabled = true;
   }
   $("site-label").textContent = pausedAll
-    ? "Paused everywhere by `sinkhole pause`"
+    ? "Paused everywhere by `sinkd pause`"
     : state.paused
       ? "Off for this site"
       : "On for this site";
@@ -137,8 +137,8 @@ function renderBridge(state: State): void {
   const button = $<HTMLButtonElement>("bridge-button");
   if (!bridge.granted) {
     status.textContent =
-      "Lets `sinkhole allow`, `block` and `pause` on the command line apply here too. " +
-      "Set it up first with `sinkhole bridge install`.";
+      "Lets `sinkd allow`, `block` and `pause` on the command line apply here too. " +
+      "Set it up first with `sinkd bridge install`.";
     button.textContent = "Connect";
     button.onclick = async () => {
       // A user gesture, so the browser asks.
@@ -152,7 +152,7 @@ function renderBridge(state: State): void {
       bridge.paused === null
         ? ""
         : bridge.paused.until === null
-          ? "; blocking paused until `sinkhole resume`"
+          ? "; blocking paused until `sinkd resume`"
           : `; blocking paused until ${new Date(bridge.paused.until).toLocaleTimeString()}`;
     status.textContent =
       `Connected: ${bridge.allow.length} allowed and ${bridge.block.length} blocked from ` +
@@ -166,7 +166,7 @@ function renderBridge(state: State): void {
       await refresh();
     };
   } else {
-    status.textContent = `Not connected: ${bridge.error ?? "not started"}. Is \`sinkhole bridge install\` done?`;
+    status.textContent = `Not connected: ${bridge.error ?? "not started"}. Is \`sinkd bridge install\` done?`;
     button.textContent = "Retry";
     button.onclick = async () => {
       await send({ type: "bridgeConnect" });
@@ -198,4 +198,4 @@ async function refresh(): Promise<void> {
   }
 }
 
-refresh().catch((e) => console.error("sinkhole popup:", e));
+refresh().catch((e) => console.error("sinkd popup:", e));

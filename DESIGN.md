@@ -1,6 +1,9 @@
-# sinkhole design
+# sinkd design
 
-This document records the decisions behind sinkhole and the reasons for them.
+This document records the decisions behind sinkd and the reasons for them.
+(The project was called sinkhole until after M9. Its permanent IDs live
+under `io.github.nald0422`: the Firefox add-on is `sinkd@nald0422.github.io`;
+the macOS service and the browser bridge are `io.github.nald0422.sinkd`.)
 It grew with each milestone. Status: **all nine milestones done**; the
 last one (M9) added the command line, install and uninstall, the browser
 bridge, hardening and fuzzing.
@@ -8,24 +11,24 @@ bridge, hardening and fuzzing.
 ## Shape of the system
 
 ```
-filter lists ──► sinkhole-filters (parse, lossless AST) ──► sinkhole-compiler
+filter lists ──► sinkd-filters (parse, lossless AST) ──► sinkd-compiler
                                                               ├─► domain set ──► resolver (DNS, every app)
                                                               ├─► DNR JSON   ──► extension (Chrome/Firefox)
                                                               ├─► cosmetic + scriptlet index ──► engine-wasm
                                                               └─► report of untranslatable rules
 ```
 
-One parser feeds every target, so the resolver, the extension and `sinkhole
+One parser feeds every target, so the resolver, the extension and `sinkd
 check` can never disagree about what a rule means.
 
 | crate | role | I/O |
 |---|---|---|
-| `sinkhole-core` | domain normalization, DNS domain matcher, config types | none |
-| `sinkhole-filters` | ABP / uBO / AdGuard syntax → structured rules; DNS-list syntaxes | none |
-| `sinkhole-lists` | fetch lists over HTTPS, check them, cache them; follow `!#include` | HTTPS, cache files |
-| `sinkhole-resolver` | the DNS daemon: decide, block, cache, forward over DoH/DoT/UDP, serve, hot reload | sockets, HTTPS/TLS, list and cache files |
-| `sinkhole-compiler` | lists → DNR rulesets, surrogates, the resolver's domain set, a report of what each target cannot use | none (the CLI reads and writes) |
-| `sinkhole-cli` | the `sinkhole` binary: `run`, `update`, `compile`, `check`, `stats`, `pause`, `resume`, `allow`, `block`, `install`, `uninstall`, `doctor`, `bridge` | sockets, the system's DNS settings (install), browser host manifests (bridge) |
+| `sinkd-core` | domain normalization, DNS domain matcher, config types | none |
+| `sinkd-filters` | ABP / uBO / AdGuard syntax → structured rules; DNS-list syntaxes | none |
+| `sinkd-lists` | fetch lists over HTTPS, check them, cache them; follow `!#include` | HTTPS, cache files |
+| `sinkd-resolver` | the DNS daemon: decide, block, cache, forward over DoH/DoT/UDP, serve, hot reload | sockets, HTTPS/TLS, list and cache files |
+| `sinkd-compiler` | lists → DNR rulesets, surrogates, the resolver's domain set, a report of what each target cannot use | none (the CLI reads and writes) |
+| `sinkd-cli` | the `sinkd` binary: `run`, `update`, `compile`, `check`, `stats`, `pause`, `resume`, `allow`, `block`, `install`, `uninstall`, `doctor`, `bridge` | sockets, the system's DNS settings (install), browser host manifests (bridge) |
 | `extension/` | MV3 extension for Chromium and Firefox: TypeScript glue over the compiled rulesets | |
 | `engine-wasm` | the cosmetic and scriptlet index (M6) | |
 | `fuzz/` | fuzz targets (outside the workspace) | |
@@ -49,7 +52,7 @@ Every crate has `#![forbid(unsafe_code)]`, also enforced as a workspace lint.
 | Safety | With default features it **accepts** `##.a{} body{x:y}` (escapes its CSS rule block) and `:style(background: url(https://…))` (remote load from a stylesheet). `css-validation` exists but pulls in Servo's `cssparser`/`selectors`. |
 | Index format | Hash-keyed flatbuffers with a format that changes between versions. That would tie our wasm engine to its hash function and release cadence. |
 
-**Decision:** `sinkhole-filters` is our own lossless parser, and `adblock` is a
+**Decision:** `sinkd-filters` is our own lossless parser, and `adblock` is a
 **dev-dependency used as a differential oracle** (`crates/filters/tests/oracle.rs`).
 Both parsers read a hand-written corpus. Every disagreement must be listed in
 the test with its reason, so a new divergence or a stale one fails CI. The
@@ -242,7 +245,7 @@ the request type or the URL is reported (`dns:options`, `dns:not-hostname`,
 
 ## Coverage on real lists (2026-11-07)
 
-`cargo run --release -p sinkhole-filters --example coverage -- --oracle <lists>`
+`cargo run --release -p sinkd-filters --example coverage -- --oracle <lists>`
 parses whole lists, groups rejections by feature, runs the adblock-rust oracle
 on every rule line and feeds the same lists to the DNS builder. Lists were
 fetched on 2026-11-07 (EasyList 202611070318, uBO's uAssets of the same day).
@@ -292,7 +295,7 @@ rules (72%). The next ten by use are:
 
 These ten take coverage to about 92%, which is the M6 target. 118 rules use
 uBO's `trusted-*` scriptlets, which take arbitrary values or HTML. uBO accepts
-them only from its own lists, and sinkhole needs a policy for them before
+them only from its own lists, and sinkd needs a policy for them before
 bundling any (M6).
 
 **Oracle.** Both parsers agree on 145,931 rule lines. We reject 908 lines that
@@ -315,7 +318,7 @@ about 2.1 M lines/s.
 - **Never an open resolver.** Non-loopback `listen.addrs` need
   `allow_non_loopback = true` *and* a non-empty `client_allowlist`. `/0` is
   refused. IPv4-mapped loopback counts as loopback.
-- DoH upstreams whose URL host is a name need `bootstrap` IPs. Once sinkhole is
+- DoH upstreams whose URL host is a name need `bootstrap` IPs. Once sinkd is
   the system resolver it cannot resolve its own upstream.
 - UDP/DoT upstreams equal to one of our listen addresses (forwarding loop) are
   refused. `metrics.listen` must be loopback.
@@ -356,7 +359,7 @@ over EDNS, truncation and what is forwarded.
   - Its owner is the list entry that matched, which is the query name or a
     parent of it, standing in for the zone apex.
   - Its names are under `.invalid`, so nobody mistakes it for a real zone:
-    `ads.example. 10 IN SOA sinkhole.invalid. blocked.sinkhole.invalid. 1 3600 600 86400 10`.
+    `ads.example. 10 IN SOA sinkd.invalid. blocked.sinkd.invalid. 1 3600 600 86400 10`.
 - Only class IN (and ANY) is matched; CHAOS and friends are forwarded.
 
 **Matching wire names.** A DNS label may hold any byte, dots included.
@@ -471,7 +474,7 @@ upstream share 8 cores:
   macOS, measured). A desktop sends tens of queries per second, so this is
   not a practical limit. M4 reuses DoH/DoT connections, and the cache takes
   repeat names off this path.
-- The daemon itself was measured with `sinkhole run`:
+- The daemon itself was measured with `sinkd run`:
   - The seven real lists from the coverage check load in 130 ms, giving
     89,063 block entries, at 11 MB RSS.
   - A synthetic 1M-entry hosts file loads in 487 ms (999,528 unique), at
@@ -490,7 +493,7 @@ call for rules with `$third-party`.
 
 **The cache is the single source of truth for URL lists.** A refresh writes
 to it; a build only reads it (and local files). So a build never waits on
-the network, startup works offline, and the daemon and `sinkhole update`
+the network, startup works offline, and the daemon and `sinkd update`
 cooperate through the directory with no other channel: `update` writes a
 file, the daemon notices it on its next poll.
 
@@ -504,7 +507,7 @@ file, the daemon notices it on its next poll.
   *decompressed* bytes, counted as they stream, so a small compressed body
   cannot expand without bound. That is tested.
 - Timeouts: 10 s to connect, 30 s per read, 5 min in total.
-- `User-Agent: sinkhole/<version>`. HTTPS_PROXY/ALL_PROXY are honored;
+- `User-Agent: sinkd/<version>`. HTTPS_PROXY/ALL_PROXY are honored;
   macOS system proxy settings are not read.
 
 **TLS: rustls with *ring*, certificates checked by the OS.**
@@ -514,15 +517,15 @@ file, the daemon notices it on its next poll.
   default when the first fetcher is built.
 - Certificates are verified by `rustls-platform-verifier`, i.e. the OS
   (Security.framework on macOS), so the system's trust settings and
-  revocation apply. sinkhole never adds a root of its own.
+  revocation apply. sinkd never adds a root of its own.
 - cargo-deny now allows ISC (ring, rustls-webpki, untrusted) and
   BSD-3-Clause (subtle), and checks only the platforms we ship for.
 
 **List servers are resolved through the upstreams**, via a `Resolve` hook in
 the fetcher that the resolver implements with its own upstreams. This avoids
 three traps:
-- Once sinkhole is the system resolver, asking the system would ask
-  sinkhole itself.
+- Once sinkd is the system resolver, asking the system would ask
+  sinkd itself.
 - A list could otherwise block its own host and so prevent its own fix.
 - The lookups stay on the configured path, which becomes encrypted in M4.
 The daemon uses whatever upstreams are in force at the time of each lookup.
@@ -537,7 +540,7 @@ use:
   `Content-Encoding` is one example.
 - **Empty:** no rule lines at all is refused.
 - **Collapse:** fewer than 10% of the previous copy's rules is refused when
-  that copy had at least 100. `sinkhole update --force` overrides only this
+  that copy had at least 100. `sinkd update --force` overrides only this
   check.
 - A server without validators sends the whole list every time. A body
   whose FNV-1a digest matches the cached copy counts as unchanged, so it
@@ -608,7 +611,7 @@ local entries are how the user overrides them.
   URL lists are `stat`ed every 2 s: size, mtime and inode.
 - A dozen `stat` calls cost nothing measurable, need no FSEvents/inotify
   dependency, and see editors that save by renaming (the inode changes).
-- Watching the cache files is what makes a parallel `sinkhole update` take
+- Watching the cache files is what makes a parallel `sinkd update` take
   effect.
 
 **Rebuilds.**
@@ -670,10 +673,10 @@ includes, 6.6 MB, 4 at a time:
 
 | | |
 |---|---|
-| `sinkhole update`, empty cache | 3.45 s |
-| `sinkhole update` again (all 304) | 0.51 s |
-| `sinkhole run`, empty cache | serves at once; all lists applied in one 183 ms rebuild a few seconds later |
-| `sinkhole run` from the cache | 189 ms to load 89,461 entries; 29 MiB RSS |
+| `sinkd update`, empty cache | 3.45 s |
+| `sinkd update` again (all 304) | 0.51 s |
+| `sinkd run`, empty cache | serves at once; all lists applied in one 183 ms rebuild a few seconds later |
+| `sinkd run` from the cache | 189 ms to load 89,461 entries; 29 MiB RSS |
 
 ## Upstreams, cache and answers (`resolver`, M4)
 
@@ -687,9 +690,9 @@ includes, 6.6 MB, 4 at a time:
   and its question must match.
 - The URL's host is pinned to the configured `bootstrap` addresses, so
   reaching the upstream never needs a DNS lookup, which would come back to
-  sinkhole itself. Config validation already required `bootstrap` for a
+  sinkd itself. Config validation already required `bootstrap` for a
   host name.
-- No proxies, so no stranger sits between sinkhole and its upstream (and a
+- No proxies, so no stranger sits between sinkd and its upstream (and a
   proxy configured by name would need resolving). No redirects.
 
 **DNS over TLS** (RFC 7858) keeps one long-lived, pipelined connection per
@@ -701,7 +704,7 @@ upstream.
   reconnects, and concurrent callers share that one connect.
 - Servers close idle connections, and a query can race that close. A query
   that loses the race on a *reused* connection is retried once on a fresh
-  one. sinkhole closes its own side after 8 s idle.
+  one. sinkd closes its own side after 8 s idle.
 
 **Padding.** DoH and DoT queries carry an EDNS Padding option that brings
 them to a multiple of 128 bytes (RFC 8467). Otherwise the length of an
@@ -792,7 +795,7 @@ that asks for it:
 - `resolver.arpa` is the other bypass, beside the canary. Through Discovery
   of Designated Resolvers, a client asks its resolver for an encrypted one.
   Forwarded to Quad9, the question would come back with Quad9's DoH
-  endpoint, and the client would switch to it, bypassing sinkhole.
+  endpoint, and the client would switch to it, bypassing sinkd.
 
 ### Measured (M4, 2026-11-07, M1 Pro, release build)
 
@@ -834,7 +837,7 @@ Engine, per query (criterion, no sockets):
 | decide + answer a special name (`localhost`) | 0.69 µs |
 | cache hit → key, lookup, TTL count-down, uncloak check, reply | 1.94 µs |
 
-Live, through Quad9, with `dig` against `sinkhole run` and the default config:
+Live, through Quad9, with `dig` against `sinkd run` and the default config:
 
 | | |
 |---|---|
@@ -848,7 +851,7 @@ Live, through Quad9, with `dig` against `sinkhole run` and the default config:
 
 ## Compiler (`compiler`, M5)
 
-`sinkhole compile --rulesets extension/rulesets.toml --out DIR` reads the
+`sinkd compile --rulesets extension/rulesets.toml --out DIR` reads the
 lists a build manifest names, and writes:
 - `rulesets/<id>.json`, the DNR rules, with `rulesets.json` indexing them;
 - `war/`, the surrogates;
@@ -1011,7 +1014,7 @@ Apache-2.0:
 
 | | |
 |---|---|
-| `sinkhole compile`, 7 public lists + 9 includes + 3 own lists | 670–690 ms, 276 MB peak RSS |
+| `sinkd compile`, 7 public lists + 9 includes + 3 own lists | 670–690 ms, 276 MB peak RSS |
 | filter rules translated / not translatable | 118,735 / 4,741 |
 | DNR rules (ads 7,391 · trackers 9,941 · badware 1,184 · fixes 1,367 · parameters 179) | 20,062 of 30,000 guaranteed |
 | regex rules | 222, all accepted by Chrome |
@@ -1187,7 +1190,7 @@ for every hostname. Each page opens in three browsers:
 - **plain**, no extension: detectors must stay quiet (the page is honest).
 - **naive**, ad and tracker hosts aborted and bait hidden: detectors must
   fire (the page catches a blocker that has no surrogates or scriptlets).
-- **sinkhole**, built from `testbed/lists/testbed.txt` plus the real
+- **sinkd**, built from `testbed/lists/testbed.txt` plus the real
   surrogate and parameter lists: no detection, and no ad or tracker request
   reaches the server.
 
@@ -1326,7 +1329,7 @@ from the same compiled output and the same JavaScript, with:
   - an event page (`background.scripts`, an ES module) instead of a service
     worker, which Firefox doesn't offer extensions;
   - the `dns`, `webRequest` and `webRequestBlocking` permissions;
-  - `browser_specific_settings.gecko`: the ID `sinkhole@sinkhole.invalid`
+  - `browser_specific_settings.gecko`: the ID `sinkd@nald0422.github.io`
     (a placeholder, permanent once published), `strict_min_version` 140
     (the current ESR; tested on 141), and `data_collection_permissions:
     none`, which AMO requires of new extensions.
@@ -1412,7 +1415,7 @@ the alias:
     host. The request needed the address anyway, and the system resolver
     caches it, so most of that is absorbed.
 
-**Firefox's own protections**, which sinkhole meets there:
+**Firefox's own protections**, which sinkd meets there:
 - Total Cookie Protection partitions third-party cookies. Playwright's
   Firefox runs without it, so the testbed still sees them flow.
 - Firefox trims cross-site referrers to the origin, whatever the page asks
@@ -1528,7 +1531,7 @@ connection. Config validation already refuses a non-loopback address, and
 the server also drops non-loopback peers. It exposes counters and gauges
 only, never names.
 
-### `sinkhole check`
+### `sinkd check`
 
 `check` reads what is on disk and nothing else: the resolver's config and
 its cached lists, and the extension's lists from the compile cache.
@@ -1580,9 +1583,9 @@ subdomains only) before they are compared, so `Ads.Example.` and
 
 **Exact restoration.** Install saves the settings it found
 (`dns-backup.json`) and keeps the first backup across reinstalls, so a
-reinstall never saves sinkhole's own settings as "the original". Uninstall
+reinstall never saves sinkd's own settings as "the original". Uninstall
 puts back exactly what was saved, and only where the setting still points
-at sinkhole. A setting the user changed since install is left alone and
+at sinkd. A setting the user changed since install is left alone and
 reported. Next to the backup, install writes `restore-dns.sh`: the same
 restoration as plain commands, for the README's one-line recovery when the
 binary itself is gone.
@@ -1590,18 +1593,18 @@ binary itself is gone.
 ### macOS
 
 - **DNS.** `networksetup` sets each network service's servers, disabled
-  services included, since one enabled later should use sinkhole too.
+  services included, since one enabled later should use sinkd too.
   "There aren't any DNS Servers set" is saved as an empty list and restored
   as `Empty`, which hands the choice back to DHCP or the VPN. The caches
   are flushed (`dscacheutil -flushcache`, then HUP to mDNSResponder).
 - **The service.** A launchd daemon (`/Library/LaunchDaemons/
-  sinkhole.resolver.plist`, `KeepAlive`, `ThrottleInterval` 5) runs
-  `sinkhole run --user _sinkhole`.
+  io.github.nald0422.sinkd.plist`, `KeepAlive`, `ThrottleInterval` 5) runs
+  `sinkd run --user _sinkd`.
 - **Privilege separation.** Binding 127.0.0.1:53 needs root on macOS: a
   test bind as uid 501 got EACCES. Only the wildcard address is exempt,
   and binding that would expose the port to the network. So the root
   parent binds the sockets, clears their close-on-exec flag, and starts
-  `sinkhole run --inherited udp=N,tcp=M` as `_sinkhole`. `Command::uid`
+  `sinkd run --inherited udp=N,tcp=M` as `_sinkd`. `Command::uid`
   drops the supplementary groups too (it calls `setgroups(0)`).
   - The child takes the sockets over by opening `/dev/fd/N`, which
     duplicates the descriptor with no unsafe code, then checks that each
@@ -1611,10 +1614,10 @@ binary itself is gone.
   - launchd's own socket activation would avoid the root parent, but
     getting the descriptors from it needs an FFI call, and the crates
     have `#![forbid(unsafe_code)]`.
-- **The user.** `_sinkhole` and its group get the first id free for both
+- **The user.** `_sinkd` and its group get the first id free for both
   in 200–400 (below 500, so it stays out of the login window), with no
   shell and no home. Uninstall deletes them.
-- **Logs.** `/Library/Logs/sinkhole.log`. Without per-query logging that
+- **Logs.** `/Library/Logs/sinkd.log`. Without per-query logging that
   is a few lines a day, so there is no rotation.
 
 ### Linux (systemd)
@@ -1633,10 +1636,10 @@ binary itself is gone.
 - **DNS**, chosen by what `/etc/resolv.conf` is:
   - *systemd-resolved's stub:* a drop-in sets `DNS=127.0.0.1 ::1` and
     `Domains=~.`. A global `~.` routing domain outranks the per-link
-    servers from DHCP, so every name goes to sinkhole. Uninstall deletes
+    servers from DHCP, so every name goes to sinkd. Uninstall deletes
     the drop-in.
   - *a plain file:* saved byte for byte and replaced; uninstall writes
-    the saved bytes back if the file is still sinkhole's.
+    the saved bytes back if the file is still sinkd's.
   - *a link to anything else* (NetworkManager, say): left alone, with
     instructions, since whatever owns it would undo the change. The
     service is installed and running either way.
@@ -1652,7 +1655,7 @@ binary itself is gone.
 
 ## The browser bridge (M9)
 
-`sinkhole bridge install` registers a native-messaging host (`sinkhole.
+`sinkd bridge install` registers a native-messaging host (`sinkd.
 bridge`) with every installed browser, for the current user:
 
 - a manifest per browser;
@@ -1741,7 +1744,7 @@ public lists, whose licenses would follow the files. The corpus and any
 crashes stay out of git.
 
 **First run:** five minutes per target, ten at once on 8 cores. About 41
-million runs, and no crash in sinkhole's code.
+million runs, and no crash in sinkd's code.
 
 The one crash was in a target: its assertion was wrong. libFuzzer gives a
 `&str` target the valid-UTF-8 start of its input, here `a.a..`, and
@@ -1770,12 +1773,12 @@ CI runs every target for 30 s on each push.
 |---|---|
 | Resolver, cached queries, query log off / on (`loadgen`, 64 clients) | 93,400 / 89,400 q/s, p99 1.1 ms both |
 | Resolver, blocked queries, query log off / on | 90,500 / 89,800 q/s |
-| `sinkhole check <name>` (release) | 0.38 s, 110 MB peak |
-| `sinkhole check <page>` (release; compiles every list) | 1.29 s, 270 MB peak |
-| A `sinkhole block add`, until the rule is in the browser (bridge) | 2.06–2.08 s, Chromium and Firefox |
+| `sinkd check <name>` (release) | 0.38 s, 110 MB peak |
+| `sinkd check <page>` (release; compiles every list) | 1.29 s, 270 MB peak |
+| A `sinkd block add`, until the rule is in the browser (bridge) | 2.06–2.08 s, Chromium and Firefox |
 | The native host | 5.8 MiB resident, 0% CPU idle; exits within 1 ms of the browser hanging up |
 | Release binary | 15.2 MB, line tables included |
-| Fuzzing | about 41 million runs, no crash in sinkhole's code (above) |
+| Fuzzing | about 41 million runs, no crash in sinkd's code (above) |
 
 ## Known gaps
 
@@ -1795,12 +1798,12 @@ CI runs every target for 30 s on each push.
     the DNS settings. The Linux install runs for real only in CI, which
     hasn't run yet.
   - New network services and VPNs. A network service added after install
-    uses DHCP's servers until `sudo sinkhole install` runs again; `doctor`
-    lists the ones not using sinkhole. A VPN that sets its own DNS wins,
+    uses DHCP's servers until `sudo sinkd install` runs again; `doctor`
+    lists the ones not using sinkd. A VPN that sets its own DNS wins,
     by design.
   - `control.users` takes numeric ids. The installer writes the invoking
     user's (`SUDO_UID`).
-  - Linux without systemd: no installer. `sinkhole run` works under any
+  - Linux without systemd: no installer. `sinkd run` works under any
     init system.
   - The bridge keeps Chrome's service worker running while it is
     connected (see above). It checks for changes every 2 s rather than
@@ -1878,7 +1881,7 @@ CI runs every target for 30 s on each push.
   - The default cache directory is per-user. A daemon running as root or as
     a service user needs `updates.cache_dir` set; the installer writes it.
   - The collapse guard holds a list that legitimately shrank by more than
-    90% until someone runs `sinkhole update --force`. It is logged as a
+    90% until someone runs `sinkd update --force`. It is logged as a
     warning on every check.
   - `Cache-Control: max-age` is not consulted; the list's `Expires` header
     and the config decide.

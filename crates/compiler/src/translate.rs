@@ -6,10 +6,10 @@
 //! (`popup`, `webrtc`) from a rule that has others; the rest of the rule
 //! still applies exactly, and the drop is noted in the report.
 
-use sinkhole_filters::network::{
+use sinkd_filters::network::{
     Action as FilterAction, Anchor, ParamMatch, Party, ResourceTypes, StrictParty,
 };
-use sinkhole_filters::{DomainSpec, HostPattern, NetworkRule, ResponseHeaderRule};
+use sinkd_filters::{DomainSpec, HostPattern, NetworkRule, ResponseHeaderRule};
 
 use crate::dnr::{
     Action, ActionType, Condition, DomainType, HeaderInfo, HeaderOperation, Method, QueryTransform,
@@ -535,7 +535,7 @@ fn resource_types(types: ResourceTypes) -> Vec<ResourceType> {
 
 /// Sets the URL part of `condition` from the rule's pattern.
 fn pattern(rule: &NetworkRule, condition: &mut Condition) -> Result<(), Skip> {
-    use sinkhole_filters::network::UrlPattern;
+    use sinkd_filters::network::UrlPattern;
     match &rule.pattern {
         UrlPattern::Regex { source } => {
             check_regex(source, rule.options.match_case)?;
@@ -742,7 +742,7 @@ fn domains(specs: &[DomainSpec]) -> Result<(Vec<String>, Vec<String>), Skip> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sinkhole_filters::{Rule, parse_rule};
+    use sinkd_filters::{Rule, parse_rule};
 
     fn net(line: &str) -> NetworkRule {
         match parse_rule(line).unwrap_or_else(|e| panic!("{line}: {e}")) {

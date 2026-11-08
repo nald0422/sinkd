@@ -5,9 +5,9 @@
 use hickory_proto::op::{Message, Query};
 use hickory_proto::rr::{Name, RecordType};
 use libfuzzer_sys::fuzz_target;
-use sinkhole_core::config::{Blocking, Cache as CacheSettings};
-use sinkhole_core::{Domain, DomainMatcher, Scope};
-use sinkhole_resolver::{AnswerCache, Decision, Engine, Forward, Transport};
+use sinkd_core::config::{Blocking, Cache as CacheSettings};
+use sinkd_core::{Domain, DomainMatcher, Scope};
+use sinkd_resolver::{AnswerCache, Decision, Engine, Forward, Transport};
 use std::sync::OnceLock;
 
 fn setup() -> &'static (Engine, Vec<Forward>, AnswerCache) {

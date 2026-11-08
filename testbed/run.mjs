@@ -11,7 +11,7 @@
 // - naive: no extension, but ad and tracker hosts are aborted and bait
 //   classes hidden, as a blocker without surrogates or scriptlets would.
 //   Detectors must fire here, or they don't test anything.
-// - sinkhole: the extension, built from rulesets.toml (lists/testbed.txt
+// - sinkd: the extension, built from rulesets.toml (lists/testbed.txt
 //   plus the real surrogate and parameter lists). Detectors must stay
 //   quiet, and no ad or tracker request may reach the server.
 //
@@ -84,7 +84,7 @@ const profiles = [];
 /**
  * CNAME uncloaking (Firefox): first-party names and their DNS aliases. The
  * pages ask for these at the server's own port, so they skip the proxy and
- * Firefox looks them up: sinkhole never looks up proxied requests (the
+ * Firefox looks them up: sinkd never looks up proxied requests (the
  * local resolver would learn of them). The extension's Firefox gets the
  * aliases from the DNS override service; the plain one resolves the names
  * to the server without them.
@@ -138,7 +138,7 @@ async function plainBrowser(server, { naive = false } = {}) {
 
 /** A persistent profile without the extension: the bench's baseline. */
 async function bareBrowser(server) {
-  const profile = mkdtempSync(join(tmpdir(), "sinkhole-testbed-"));
+  const profile = mkdtempSync(join(tmpdir(), "sinkd-testbed-"));
   profiles.push(profile);
   const context = FIREFOX
     ? await firefox.launchPersistentContext(profile, {
@@ -185,7 +185,7 @@ async function registered(evaluate, path) {
  */
 async function extensionBrowser(path, server, profile = null) {
   if (profile === null) {
-    profile = mkdtempSync(join(tmpdir(), "sinkhole-testbed-"));
+    profile = mkdtempSync(join(tmpdir(), "sinkd-testbed-"));
     profiles.push(profile);
   }
   if (FIREFOX) {
@@ -310,7 +310,7 @@ async function detectionChecks(
         return `${r.detections.length} caught`;
       });
     }
-    await check(`${page}: no detection fires with sinkhole`, async () => {
+    await check(`${page}: no detection fires with sinkd`, async () => {
       const { value: r, seen } = await requestsDuring(server, AD_HOSTS, () =>
         visit(ext.context, url),
       );
@@ -383,7 +383,7 @@ async function stealthChecks(plain, ext, { allowedNames }) {
     );
   });
   // Chrome extension IDs are the same in every install, so a page could
-  // probe for known ones; sinkhole's resources answer only at a URL that
+  // probe for known ones; sinkd's resources answer only at a URL that
   // changes (use_dynamic_url). Firefox addresses an install by a random
   // UUID instead, never by the add-on ID; its web-accessible resources
   // (the surrogates) answer there, so the UUID must not leak (the checks

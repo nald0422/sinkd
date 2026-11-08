@@ -11,11 +11,11 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.dependencies]
-sinkhole-compiler = { path = "crates/compiler" }
-sinkhole-core = { path = "crates/core", default-features = false }
-sinkhole-filters = { path = "crates/filters" }
-sinkhole-lists = { path = "crates/lists" }
-sinkhole-resolver = { path = "crates/resolver" }
+sinkd-compiler = { path = "crates/compiler" }
+sinkd-core = { path = "crates/core", default-features = false }
+sinkd-filters = { path = "crates/filters" }
+sinkd-lists = { path = "crates/lists" }
+sinkd-resolver = { path = "crates/resolver" }
 
 ahash = { version = "0.8.12", default-features = false, features = ["std"] }
 anyhow = "1.0.104"
@@ -67,7 +67,7 @@ unwrap_used = "warn"
 debug = "line-tables-only"
 
 # The extension's wasm engine: small over fast, no debug info.
-# `cargo build -p sinkhole-engine-wasm --target wasm32-unknown-unknown --profile wasm`
+# `cargo build -p sinkd-engine-wasm --target wasm32-unknown-unknown --profile wasm`
 [profile.wasm]
 inherits = "release"
 opt-level = "s"

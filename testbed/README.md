@@ -35,7 +35,7 @@ Each detection page opens in three browsers:
 |---|---|---|
 | plain | the browser, no extension | no detection: the page is honest |
 | naive | ad and tracker hosts aborted, bait classes hidden | detection: the page catches a blocker without surrogates or scriptlets |
-| sinkhole | the extension, built from `rulesets.toml` | no detection, and no ad request reaches the server |
+| sinkd | the extension, built from `rulesets.toml` | no detection, and no ad request reaches the server |
 
 `rulesets.toml` builds the extension from `lists/testbed.txt` (rules for
 the testbed's hosts only) plus the real surrogate and parameter lists.

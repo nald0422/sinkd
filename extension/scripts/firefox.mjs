@@ -121,11 +121,11 @@ const invocation = (fn, arg) =>
  * Firefox's tabs): fresh when `reload`, else the frame already there.
  */
 const inPopup = (fn, arg, reload) => `(async () => {
-  let frame = document.getElementById("sinkhole-test-popup");
+  let frame = document.getElementById("sinkd-test-popup");
   if (frame && ${reload}) { frame.remove(); frame = null; }
   if (!frame) {
     frame = document.createElement("iframe");
-    frame.id = "sinkhole-test-popup";
+    frame.id = "sinkd-test-popup";
     frame.src = "popup.html";
     const loaded = new Promise((ok) => frame.addEventListener("load", ok, { once: true }));
     document.body.append(frame);

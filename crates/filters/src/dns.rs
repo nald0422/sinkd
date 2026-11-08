@@ -5,15 +5,15 @@
 //! the URL path. A rule that depends on any of those cannot be applied
 //! faithfully, so it is reported, never applied in a broadened form. Every
 //! entry blocks (or allows) the whole subtree below its name; `*.name` covers
-//! only the names below. See [`sinkhole_core::matcher`].
+//! only the names below. See [`sinkd_core::matcher`].
 //!
-//! `$important` is accepted but has no effect: in sinkhole the allowlist
+//! `$important` is accepted but has no effect: in sinkd the allowlist
 //! always wins.
 
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 
-use sinkhole_core::{
+use sinkd_core::{
     Domain, DomainError, DomainMatcher, DomainMatcherBuilder, Scope, parse_domain_pattern,
 };
 
@@ -254,7 +254,7 @@ impl DnsReport {
 ///
 /// `!#if` conditions are evaluated against [`Env::dns`] unless another
 /// environment is given. `!#include` lines are skipped: the list loader
-/// (`sinkhole-lists`) fetches included files and adds each one as a list of
+/// (`sinkd-lists`) fetches included files and adds each one as a list of
 /// its own.
 #[derive(Default)]
 pub struct DnsListBuilder {
@@ -319,7 +319,7 @@ impl DnsListBuilder {
     }
 
     /// Adds one entry.
-    pub fn add_rule(&mut self, rule: DnsRule) -> Result<(), sinkhole_core::CapacityError> {
+    pub fn add_rule(&mut self, rule: DnsRule) -> Result<(), sinkd_core::CapacityError> {
         if rule.badfilter {
             self.badfilters.push(rule);
             return Ok(());
@@ -335,7 +335,7 @@ impl DnsListBuilder {
     /// `block`). A list's `$badfilter` cannot cancel it: lists are written
     /// by third parties, and the local entries are how the user overrides
     /// them.
-    pub fn add_local_rule(&mut self, rule: DnsRule) -> Result<(), sinkhole_core::CapacityError> {
+    pub fn add_local_rule(&mut self, rule: DnsRule) -> Result<(), sinkd_core::CapacityError> {
         let rule = DnsRule {
             badfilter: false,
             ..rule
@@ -369,7 +369,7 @@ impl DnsListBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sinkhole_core::Verdict;
+    use sinkd_core::Verdict;
 
     fn line(l: &str) -> Result<Vec<(String, Scope, DnsAction)>, ParseError> {
         parse_dns_line(l, DnsFormat::Auto, DnsAction::Block).map(|v| {

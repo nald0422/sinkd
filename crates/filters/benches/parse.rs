@@ -1,10 +1,10 @@
-//! Parser throughput. `cargo bench -p sinkhole-filters`.
+//! Parser throughput. `cargo bench -p sinkd-filters`.
 
 use std::hint::black_box;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use sinkhole_filters::dns::{DnsAction, DnsFormat, parse_dns_line};
-use sinkhole_filters::{Env, parse_list, parse_rule};
+use sinkd_filters::dns::{DnsAction, DnsFormat, parse_dns_line};
+use sinkd_filters::{Env, parse_list, parse_rule};
 
 const SAMPLES: &[(&str, &str)] = &[
     ("network_hostname", "||ads.example.com^"),

@@ -1,4 +1,4 @@
-//! The `sinkhole` command.
+//! The `sinkd` command.
 #![forbid(unsafe_code)]
 
 mod bridge;
@@ -18,25 +18,25 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
-use sinkhole_compiler::{ListInput, Manifest};
-use sinkhole_core::config::Config;
-use sinkhole_filters::Env;
-use sinkhole_lists::{Cache, Fetcher, Outcome, Report};
-use sinkhole_resolver::{PARALLEL_CHECKS, upstreams};
+use sinkd_compiler::{ListInput, Manifest};
+use sinkd_core::config::Config;
+use sinkd_filters::Env;
+use sinkd_lists::{Cache, Fetcher, Outcome, Report};
+use sinkd_resolver::{PARALLEL_CHECKS, upstreams};
 use tokio::sync::Semaphore;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
 #[command(
-    name = "sinkhole",
+    name = "sinkd",
     version,
     about = "A local DNS sinkhole for ads and trackers, and the tools around it"
 )]
 struct Cli {
     /// The resolver's config file. Default: the installed one
-    /// (/usr/local/etc/sinkhole/sinkhole.toml on macOS,
-    /// /etc/sinkhole/sinkhole.toml on Linux).
-    #[arg(short, long, global = true, env = "SINKHOLE_CONFIG")]
+    /// (/usr/local/etc/sinkd/sinkd.toml on macOS,
+    /// /etc/sinkd/sinkd.toml on Linux).
+    #[arg(short, long, global = true, env = "SINKD_CONFIG")]
     config: Option<PathBuf>,
     #[command(subcommand)]
     command: Command,
@@ -129,7 +129,7 @@ enum Command {
     /// Pause blocking, for everything on the machine and in the browser
     /// (with the bridge set up).
     Pause {
-        /// For how long: 30s, 5m, 1h30m. Default: until `sinkhole resume`.
+        /// For how long: 30s, 5m, 1h30m. Default: until `sinkd resume`.
         #[arg(long = "for", value_parser = ctl::parse_duration)]
         duration: Option<Duration>,
     },
@@ -146,7 +146,7 @@ enum Command {
         action: ListAction,
     },
     /// Install the resolver as a system service and point the system's DNS
-    /// at it. Needs sudo. `sinkhole uninstall` undoes all of it.
+    /// at it. Needs sudo. `sinkd uninstall` undoes all of it.
     Install {
         /// Print every change without making it.
         #[arg(long)]
@@ -347,7 +347,7 @@ pub(crate) fn load_config(path: &Path) -> Result<(Config, PathBuf, Cache)> {
             "reading {}{}",
             path.display(),
             if path == install::default_config() {
-                " (sinkhole is not installed; pass --config)"
+                " (sinkd is not installed; pass --config)"
             } else {
                 ""
             }
@@ -355,7 +355,7 @@ pub(crate) fn load_config(path: &Path) -> Result<(Config, PathBuf, Cache)> {
     })?;
     let config = Config::from_toml(&text).with_context(|| format!("in {}", path.display()))?;
     let base = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let dir = sinkhole_lists::cache_dir(&config, &base).ok_or_else(|| {
+    let dir = sinkd_lists::cache_dir(&config, &base).ok_or_else(|| {
         anyhow!("no home directory to keep downloaded lists in; set updates.cache_dir")
     })?;
     Ok((config, base, Cache::new(dir)))
@@ -388,8 +388,7 @@ async fn update(config_path: &Path, force: bool) -> Result<()> {
             let (name, url) = (name.map(str::to_owned), url.to_owned());
             tokio::spawn(async move {
                 let _permit = checks.acquire_owned().await;
-                let reports =
-                    sinkhole_lists::update(&fetcher, &cache, &url, &Env::dns(), force).await;
+                let reports = sinkd_lists::update(&fetcher, &cache, &url, &Env::dns(), force).await;
                 (name.unwrap_or(url), reports)
             })
         })
@@ -432,13 +431,13 @@ pub(crate) fn list_inputs(
             .unwrap_or_default();
         let parts = match (&list.url, &list.path) {
             (Some(url), _) => {
-                let parts = sinkhole_lists::load_url(cache, url, &env)?;
+                let parts = sinkd_lists::load_url(cache, url, &env)?;
                 if parts.is_empty() {
                     missing.push(list.name.clone());
                 }
                 parts
             }
-            (None, Some(path)) => sinkhole_lists::load_path(&base.join(path), &env)?,
+            (None, Some(path)) => sinkd_lists::load_path(&base.join(path), &env)?,
             (None, None) => continue,
         };
         for (i, part) in parts.into_iter().enumerate() {
@@ -467,7 +466,7 @@ async fn compile(rulesets: &Path, out: &Path, cache: Option<PathBuf>, offline: b
     let base = rulesets.parent().unwrap_or(Path::new("."));
     let cache = Cache::new(match cache {
         Some(dir) => dir,
-        None => sinkhole_lists::default_cache_dir()
+        None => sinkd_lists::default_cache_dir()
             .ok_or_else(|| anyhow!("no home directory for the list cache; pass --cache"))?,
     });
     let env = Env::chromium_mv3();
@@ -475,7 +474,7 @@ async fn compile(rulesets: &Path, out: &Path, cache: Option<PathBuf>, offline: b
     if !offline {
         let fetcher = Fetcher::builder().build()?;
         for url in manifest.lists.iter().filter_map(|l| l.url.as_deref()) {
-            for report in sinkhole_lists::update(&fetcher, &cache, url, &env, false).await {
+            for report in sinkd_lists::update(&fetcher, &cache, url, &env, false).await {
                 if report.failed() {
                     eprintln!("{}: {}", report.url, describe(&report));
                 }
@@ -496,9 +495,9 @@ async fn compile(rulesets: &Path, out: &Path, cache: Option<PathBuf>, offline: b
     }
 
     let started = Instant::now();
-    let compiled = sinkhole_compiler::compile(&inputs, manifest.params_ruleset.as_deref());
+    let compiled = sinkd_compiler::compile(&inputs, manifest.params_ruleset.as_deref());
     let elapsed = started.elapsed();
-    sinkhole_compiler::output::write(&compiled, &manifest, out)
+    sinkd_compiler::output::write(&compiled, &manifest, out)
         .with_context(|| format!("writing {}", out.display()))?;
 
     let r = &compiled.report;
@@ -517,7 +516,7 @@ async fn compile(rulesets: &Path, out: &Path, cache: Option<PathBuf>, offline: b
     }
     println!(
         "  static rules: {total} of the {} Chrome guarantees",
-        sinkhole_compiler::validate::GUARANTEED_STATIC_RULES
+        sinkd_compiler::validate::GUARANTEED_STATIC_RULES
     );
     let trackers: usize = manifest
         .rulesets
@@ -569,7 +568,7 @@ async fn compile(rulesets: &Path, out: &Path, cache: Option<PathBuf>, offline: b
 
 /// One line about one refreshed file.
 fn describe(report: &Report) -> String {
-    let age = |meta: &sinkhole_lists::Meta| ago(meta.age());
+    let age = |meta: &sinkd_lists::Meta| ago(meta.age());
     match (&report.outcome, &report.cached) {
         (Outcome::Updated { rules, previous }, _) => match previous {
             Some(previous) => format!("updated, {rules} rules (was {previous})"),
@@ -605,8 +604,8 @@ pub(crate) fn bind_hint(e: io::Error, config: &Config) -> anyhow::Error {
     let low_port = config.listen.addrs.iter().any(|a| a.port() < 1024);
     let hint = match e.kind() {
         io::ErrorKind::PermissionDenied if low_port => {
-            "\nhint: port 53 needs root (macOS: `sudo sinkhole run --user nobody`) or \
-             CAP_NET_BIND_SERVICE (Linux); `sudo sinkhole install` sets either up. \
+            "\nhint: port 53 needs root (macOS: `sudo sinkd run --user nobody`) or \
+             CAP_NET_BIND_SERVICE (Linux); `sudo sinkd install` sets either up. \
              For a trial run, listen on a high port such as 5300"
         }
         io::ErrorKind::AddrInUse => {

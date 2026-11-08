@@ -6,7 +6,7 @@ blocked ad and analytics resources. The scripts expose the API a page expects
 do nothing, so pages that wait on them keep working and checks for the
 global pass.
 
-All of them are original implementations for sinkhole, licensed MIT OR
+All of them are original implementations for sinkd, licensed MIT OR
 Apache-2.0 like the rest of the project. None is derived from uBlock Origin's
 or AdGuard's (GPLv3) resources; only the *names* match uBO's, so community
 lists' `$redirect=` rules select them unchanged.

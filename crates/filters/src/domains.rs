@@ -4,7 +4,7 @@
 use std::net::IpAddr;
 
 use serde::Serialize;
-use sinkhole_core::Domain;
+use sinkd_core::Domain;
 
 use crate::ParseError;
 

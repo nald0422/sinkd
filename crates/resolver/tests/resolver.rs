@@ -10,9 +10,9 @@ use hickory_proto::op::{Edns, Message, OpCode, Query, ResponseCode};
 use hickory_proto::rr::rdata::opt::{ClientSubnet, EdnsOption};
 use hickory_proto::rr::rdata::{A, AAAA, TXT};
 use hickory_proto::rr::{Name, RData, Record, RecordType};
-use sinkhole_core::config::{BlockResponse, Blocking};
-use sinkhole_core::{Domain, DomainMatcher, Scope};
-use sinkhole_resolver::{AnswerCache, ClientFilter, Engine, Policy, Server, Stats, Upstreams};
+use sinkd_core::config::{BlockResponse, Blocking};
+use sinkd_core::{Domain, DomainMatcher, Scope};
+use sinkd_resolver::{AnswerCache, ClientFilter, Engine, Policy, Server, Stats, Upstreams};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 

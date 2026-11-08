@@ -1,4 +1,4 @@
-//! `sinkhole pause`: blocking off for a while, or until resumed.
+//! `sinkd pause`: blocking off for a while, or until resumed.
 //!
 //! The pause lives in memory only. A daemon that restarts during a pause
 //! comes back blocking, which is the safe way to fail.
@@ -21,7 +21,7 @@ pub struct Pause {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Paused {
     /// When blocking resumes by itself, in milliseconds since the Unix
-    /// epoch; `None` until `sinkhole resume`.
+    /// epoch; `None` until `sinkd resume`.
     pub until_ms: Option<u64>,
 }
 

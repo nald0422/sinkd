@@ -1,4 +1,4 @@
-//! `sinkhole check <domain|url>`: what the resolver and the extension would
+//! `sinkd check <domain|url>`: what the resolver and the extension would
 //! do, and which rule decides it.
 //!
 //! It reads only what is on disk: the resolver's config and its cached
@@ -8,12 +8,12 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
-use sinkhole_compiler::explain::{Explainer, Request, Source, Verdict as NetVerdict, site};
-use sinkhole_compiler::{ListInput, Manifest};
-use sinkhole_core::{Domain, Verdict};
-use sinkhole_filters::network::ResourceTypes;
-use sinkhole_lists::Cache;
-use sinkhole_resolver::from_config;
+use sinkd_compiler::explain::{Explainer, Request, Source, Verdict as NetVerdict, site};
+use sinkd_compiler::{ListInput, Manifest};
+use sinkd_core::{Domain, Verdict};
+use sinkd_filters::network::ResourceTypes;
+use sinkd_lists::Cache;
+use sinkd_resolver::from_config;
 
 use crate::{list_inputs, load_config};
 
@@ -194,11 +194,11 @@ fn resolver(config_path: &Path, name: &str) {
                 "a blocklist"
             };
             let answer = match config.blocking.response {
-                sinkhole_core::config::BlockResponse::NullAddress => "0.0.0.0 / ::",
-                sinkhole_core::config::BlockResponse::Nxdomain => "NXDOMAIN",
+                sinkd_core::config::BlockResponse::NullAddress => "0.0.0.0 / ::",
+                sinkd_core::config::BlockResponse::Nxdomain => "NXDOMAIN",
             };
             println!("  BLOCKED by `{rule}` in {from}: answered {answer}");
-            println!("  unblock it with `sinkhole allow add {name}`");
+            println!("  unblock it with `sinkd allow add {name}`");
         }
         Verdict::Allowed { rule, .. } => {
             let from = if local(&config.allow, rule) {
@@ -225,7 +225,7 @@ fn resolver(config_path: &Path, name: &str) {
     }
     if !setup.missing.is_empty() {
         println!(
-            "  note: {} list(s) not downloaded yet; run `sinkhole update`",
+            "  note: {} list(s) not downloaded yet; run `sinkd update`",
             setup.missing.len()
         );
     }
@@ -243,13 +243,13 @@ fn extension_lists(o: &CheckOptions<'_>) -> Result<Vec<ListInput>> {
     let manifest = Manifest::from_toml(&text)?;
     let cache = Cache::new(match &o.cache {
         Some(dir) => dir.clone(),
-        None => sinkhole_lists::default_cache_dir()
+        None => sinkd_lists::default_cache_dir()
             .ok_or_else(|| anyhow!("no home directory for the list cache; pass --cache"))?,
     });
     let base = o.rulesets.parent().unwrap_or(Path::new("."));
     let (inputs, missing) = list_inputs(&manifest, base, &cache)?;
     for name in &missing {
-        println!("note: {name} is not in the list cache; run `sinkhole compile` once");
+        println!("note: {name} is not in the list cache; run `sinkd compile` once");
     }
     Ok(inputs)
 }
@@ -354,7 +354,7 @@ fn page(lists: &[ListInput], rulesets: &Path, host: &str) {
     else {
         return;
     };
-    let compiled = sinkhole_compiler::compile(lists, manifest.params_ruleset.as_deref());
+    let compiled = sinkd_compiler::compile(lists, manifest.params_ruleset.as_deref());
     let page = &compiled.page;
     let mask = manifest
         .rulesets

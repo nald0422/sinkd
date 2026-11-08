@@ -3,7 +3,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use sinkhole_core::{Domain, QueryName, parse_domain_pattern};
+use sinkd_core::{Domain, QueryName, parse_domain_pattern};
 
 fuzz_target!(|text: &str| {
     if let Ok(domain) = Domain::parse(text) {

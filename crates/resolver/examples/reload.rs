@@ -2,7 +2,7 @@
 //! latency while reloads run.
 //!
 //! ```text
-//! cargo run --release -p sinkhole-resolver --example reload [-- --entries 1000000 --reloads 10]
+//! cargo run --release -p sinkd-resolver --example reload [-- --entries 1000000 --reloads 10]
 //! ```
 //!
 //! Writes a hosts file of `--entries` names, builds the rules from it the way
@@ -22,9 +22,9 @@ use std::time::{Duration, Instant};
 
 use hickory_proto::op::{Message, Query};
 use hickory_proto::rr::{Name, RecordType};
-use sinkhole_core::config::Config;
-use sinkhole_lists::Cache;
-use sinkhole_resolver::{Server, from_config};
+use sinkd_core::config::Config;
+use sinkd_lists::Cache;
+use sinkd_resolver::{Server, from_config};
 use tokio::net::UdpSocket;
 
 struct Args {
@@ -179,7 +179,7 @@ fn percentiles(label: &str, h: &Histogram) {
 
 fn main() {
     let args = args();
-    let dir = std::env::temp_dir().join(format!("sinkhole-reload-bench-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("sinkd-reload-bench-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     write_list(&dir.join("list.txt"), args.entries);
     let config = Config::from_toml(

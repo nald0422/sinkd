@@ -1,21 +1,21 @@
 //! Throughput and latency of the resolver over real loopback sockets.
 //!
 //! ```text
-//! cargo run --release -p sinkhole-resolver --example loadgen [-- --clients 64 --seconds 5 --query-log 1]
+//! cargo run --release -p sinkd-resolver --example loadgen [-- --clients 64 --seconds 5 --query-log 1]
 //! ```
 //!
 //! Starts, in this process and on separate runtimes, scripted upstreams
-//! (plain UDP, and DoH over HTTP/2 with a throwaway CA), sinkhole servers
+//! (plain UDP, and DoH over HTTP/2 with a throwaway CA), sinkd servers
 //! forwarding to them, and closed-loop UDP clients (each sends a query and
 //! waits for its reply before the next). It measures five workloads:
 //!
-//! - **blocked**: names on the blocklist, answered by sinkhole itself.
+//! - **blocked**: names on the blocklist, answered by sinkd itself.
 //! - **cached**: 1,000 names asked over and over, so every answer comes
 //!   from the cache after the first.
 //! - **fwd-udp** / **fwd-doh**: names never asked before, relayed to the
 //!   UDP or the DoH upstream every time.
 //! - **direct**: the fwd-udp queries sent straight to the UDP upstream, as
-//!   a baseline; `fwd-udp − direct` is what sinkhole adds.
+//!   a baseline; `fwd-udp − direct` is what sinkd adds.
 //!
 //! Load generator, server and upstream share the machine's cores, so these
 //! numbers understate what the server alone can do. `--query-log 1` runs
@@ -33,11 +33,11 @@ use std::time::{Duration, Instant};
 use hickory_proto::op::{Message, OpCode, Query};
 use hickory_proto::rr::rdata::A;
 use hickory_proto::rr::{Name, RData, Record, RecordType};
-use sinkhole_core::config::{
+use sinkd_core::config::{
     Blocking, Cache as CacheSettings, QueryLog as QueryLogSettings, Upstream,
 };
-use sinkhole_core::{Domain, DomainMatcher, Scope};
-use sinkhole_resolver::{
+use sinkd_core::{Domain, DomainMatcher, Scope};
+use sinkd_resolver::{
     AnswerCache, ClientFilter, Engine, Policy, QueryLog, Roots, Server, Stats, StatsSnapshot,
     Upstreams,
 };

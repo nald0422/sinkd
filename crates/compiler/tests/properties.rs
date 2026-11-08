@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 
 use proptest::prelude::*;
-use sinkhole_compiler::{ListInput, compile, validate};
+use sinkd_compiler::{ListInput, compile, validate};
 
 fn host() -> impl Strategy<Value = String> {
     prop::sample::select(vec![

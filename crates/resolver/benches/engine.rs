@@ -1,7 +1,7 @@
 //! Per-query CPU cost of the engine, without sockets.
 //!
-//! `cargo bench -p sinkhole-resolver`. Throughput and latency over real
-//! sockets: `cargo run --release -p sinkhole-resolver --example loadgen`.
+//! `cargo bench -p sinkd-resolver`. Throughput and latency over real
+//! sockets: `cargo run --release -p sinkd-resolver --example loadgen`.
 
 use std::hint::black_box;
 use std::net::Ipv4Addr;
@@ -10,10 +10,10 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use hickory_proto::op::{Edns, Message, OpCode, Query};
 use hickory_proto::rr::rdata::{A, CNAME};
 use hickory_proto::rr::{Name, RData, Record, RecordType};
-use sinkhole_core::config::Blocking;
-use sinkhole_core::config::Cache as CacheSettings;
-use sinkhole_core::{Domain, DomainMatcher, Scope};
-use sinkhole_resolver::{AnswerCache, Decision, Engine, Transport};
+use sinkd_core::config::Blocking;
+use sinkd_core::config::Cache as CacheSettings;
+use sinkd_core::{Domain, DomainMatcher, Scope};
+use sinkd_resolver::{AnswerCache, Decision, Engine, Transport};
 
 fn engine() -> Engine {
     let mut b = DomainMatcher::builder();

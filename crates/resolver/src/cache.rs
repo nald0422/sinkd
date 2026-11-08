@@ -30,7 +30,7 @@ use hickory_proto::op::{Message, ResponseCode};
 use hickory_proto::rr::{RData, Record};
 use moka::Expiry;
 use moka::sync::Cache;
-use sinkhole_core::config::Cache as Settings;
+use sinkd_core::config::Cache as Settings;
 
 /// TTL of a stale answer (RFC 8767 §4 recommends 30 s).
 pub const STALE_TTL: u32 = 30;

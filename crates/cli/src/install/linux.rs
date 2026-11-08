@@ -1,7 +1,7 @@
 //! Linux: a systemd service under a dynamic user, and the system resolver
 //! pointed at it.
 //!
-//! The unit never runs sinkhole as root. systemd gives an unprivileged,
+//! The unit never runs sinkd as root. systemd gives an unprivileged,
 //! per-boot user `CAP_NET_BIND_SERVICE` (port 53) and nothing else, and
 //! sandboxes it: read-only system, no home directories, its own `/tmp`,
 //! no devices, a system-call allowlist. `Type=notify` makes `systemctl
@@ -11,7 +11,7 @@
 //! DNS, by what the machine uses:
 //!
 //! - **systemd-resolved** (`/etc/resolv.conf` is its stub): a drop-in sets
-//!   sinkhole as the global server with the `~.` routing domain, which
+//!   sinkd as the global server with the `~.` routing domain, which
 //!   makes resolved prefer it for every name over the servers DHCP hands
 //!   each link. Uninstall deletes the drop-in.
 //! - **A plain `/etc/resolv.conf` file**: saved byte for byte, then
@@ -28,17 +28,17 @@ use serde::{Deserialize, Serialize};
 
 use super::{Options, Paths, System, config_text, must, shell_word};
 
-const UNIT: &str = "sinkhole.service";
+const UNIT: &str = "sinkd.service";
 const SYSTEMCTL: &str = "/usr/bin/systemctl";
 const RESOLV: &str = "/etc/resolv.conf";
 
 pub fn paths() -> Paths {
     Paths {
-        binary: "/usr/local/bin/sinkhole".into(),
-        config: "/etc/sinkhole/sinkhole.toml".into(),
-        cache: "/var/cache/sinkhole".into(),
-        state: "/var/lib/sinkhole".into(),
-        control_socket: Some("/run/sinkhole/control.sock".into()),
+        binary: "/usr/local/bin/sinkd".into(),
+        config: "/etc/sinkd/sinkd.toml".into(),
+        cache: "/var/cache/sinkd".into(),
+        state: "/var/lib/sinkd".into(),
+        control_socket: Some("/run/sinkd/control.sock".into()),
     }
 }
 
@@ -47,14 +47,14 @@ fn unit_path() -> PathBuf {
 }
 
 fn dropin_path() -> PathBuf {
-    PathBuf::from("/etc/systemd/resolved.conf.d/sinkhole.conf")
+    PathBuf::from("/etc/systemd/resolved.conf.d/sinkd.conf")
 }
 
 pub fn unit(paths: &Paths) -> String {
     format!(
-        r#"# Written by `sinkhole install`; removed by `sinkhole uninstall`.
+        r#"# Written by `sinkd install`; removed by `sinkd uninstall`.
 [Unit]
-Description=sinkhole DNS resolver
+Description=sinkd DNS resolver
 After=network.target
 Before=nss-lookup.target
 Wants=nss-lookup.target
@@ -74,8 +74,8 @@ DynamicUser=yes
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 NoNewPrivileges=yes
-CacheDirectory=sinkhole
-RuntimeDirectory=sinkhole
+CacheDirectory=sinkd
+RuntimeDirectory=sinkd
 RuntimeDirectoryMode=0755
 
 ProtectSystem=strict
@@ -112,12 +112,12 @@ WantedBy=multi-user.target
     )
 }
 
-const DROPIN: &str = "# Written by `sinkhole install`; removed by `sinkhole uninstall`.\n\
+const DROPIN: &str = "# Written by `sinkd install`; removed by `sinkd uninstall`.\n\
 # `~.` routes every name to these servers in preference to the ones\n\
 # each network link was given.\n\
 [Resolve]\nDNS=127.0.0.1 ::1\nDomains=~.\n";
 
-const RESOLV_CONF: &str = "# Written by `sinkhole install`; `sinkhole uninstall` restores the original.\n\
+const RESOLV_CONF: &str = "# Written by `sinkd install`; `sinkd uninstall` restores the original.\n\
 nameserver 127.0.0.1\nnameserver ::1\noptions edns0 trust-ad\n";
 
 /// How the DNS settings were changed, for uninstall.
@@ -194,13 +194,13 @@ fn restore_script(backup: &Backup, paths: &Paths) -> String {
         ),
     };
     format!(
-        "#!/bin/sh\n# Puts back the DNS settings found when sinkhole was installed.\n# Written by `sinkhole install`. Run it with: sudo sh restore-dns.sh\n{body}"
+        "#!/bin/sh\n# Puts back the DNS settings found when sinkd was installed.\n# Written by `sinkd install`. Run it with: sudo sh restore-dns.sh\n{body}"
     )
 }
 
 pub fn point_dns(sys: &mut dyn System, paths: &Paths) -> Result<()> {
     if let Some(backup) = read_backup(sys, paths)? {
-        sys.note(&format!("  already pointed at sinkhole ({backup:?})"));
+        sys.note(&format!("  already pointed at sinkd ({backup:?})"));
         return Ok(());
     }
     let backup = match detect(sys)? {
@@ -208,7 +208,7 @@ pub fn point_dns(sys: &mut dyn System, paths: &Paths) -> Result<()> {
             let dropin = dropin_path();
             if sys.exists(&dropin) {
                 bail!(
-                    "{} exists and is not sinkhole's; move it away first",
+                    "{} exists and is not sinkd's; move it away first",
                     dropin.display()
                 );
             }
@@ -233,10 +233,10 @@ pub fn point_dns(sys: &mut dyn System, paths: &Paths) -> Result<()> {
             Backup::ResolvConf { mode: 0o644 }
         }
         Resolver::Other(target) => bail!(
-            "/etc/resolv.conf links to {}, which another program manages, so sinkhole leaves it alone. \
+            "/etc/resolv.conf links to {}, which another program manages, so sinkd leaves it alone. \
              The service is installed; point that program's DNS at 127.0.0.1 and ::1 (for NetworkManager: \
              `nmcli connection modify <name> ipv4.dns 127.0.0.1 ipv4.ignore-auto-dns yes`), \
-             or run `sudo sinkhole uninstall` to remove it",
+             or run `sudo sinkd uninstall` to remove it",
             target.display()
         ),
     };
@@ -284,13 +284,13 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
     sys.note(if sys.dry_run() {
         "Dry run: nothing below is changed.\n"
     } else {
-        "Installing sinkhole as a system service.\n"
+        "Installing sinkd as a system service.\n"
     });
     if !sys.exists(Path::new("/run/systemd/system")) {
-        bail!("install needs systemd; without it, run `sinkhole run` from your init system");
+        bail!("install needs systemd; without it, run `sinkd run` from your init system");
     }
     let (config, existing) = config_text(sys, paths)?;
-    let exe = std::env::current_exe().context("finding the sinkhole binary")?;
+    let exe = std::env::current_exe().context("finding the sinkd binary")?;
     if exe != paths.binary {
         sys.copy(&exe, &paths.binary, 0o755)?;
     }
@@ -314,8 +314,8 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
     if !started.ok || !sys.wait_ready(addr, Duration::from_secs(15)) {
         sys.run(SYSTEMCTL, &["disable", "--now", UNIT])?;
         bail!(
-            "the resolver did not start, so the DNS settings were left alone; see `journalctl -u sinkhole`. \
-             Remove what was installed with: sudo sinkhole uninstall"
+            "the resolver did not start, so the DNS settings were left alone; see `journalctl -u sinkd`. \
+             Remove what was installed with: sudo sinkd uninstall"
         );
     }
     if !sys.dry_run() {
@@ -324,7 +324,7 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
     if options.no_dns {
         sys.note("\nDNS settings left alone (--no-dns).");
     } else {
-        sys.note("\nPointing the system's DNS at sinkhole:");
+        sys.note("\nPointing the system's DNS at sinkd:");
         point_dns(sys, paths)?;
         match sys.verify(&paths.config) {
             Some(Ok(message)) => sys.note(&format!("  check: {message}")),
@@ -337,9 +337,9 @@ pub fn install(sys: &mut dyn System, paths: &Paths, options: &Options) -> Result
         return Ok(());
     }
     sys.note(&format!(
-        "\nInstalled. Undo everything with:\n  sudo sinkhole uninstall\n\
-         If sinkhole itself is broken, this restores the DNS settings alone:\n  sudo sh {}\n\
-         Logs: journalctl -u sinkhole",
+        "\nInstalled. Undo everything with:\n  sudo sinkd uninstall\n\
+         If sinkd itself is broken, this restores the DNS settings alone:\n  sudo sh {}\n\
+         Logs: journalctl -u sinkd",
         shell_word(&paths.restore_script().to_string_lossy())
     ));
     Ok(())
@@ -349,7 +349,7 @@ pub fn uninstall(sys: &mut dyn System, paths: &Paths, options: &Options) -> Resu
     sys.note(if sys.dry_run() {
         "Dry run: nothing below is changed.\n"
     } else {
-        "Uninstalling sinkhole.\n"
+        "Uninstalling sinkd.\n"
     });
     sys.note("Restoring the DNS settings:");
     restore_dns(sys, paths)?;
@@ -363,7 +363,7 @@ pub fn uninstall(sys: &mut dyn System, paths: &Paths, options: &Options) -> Resu
     // A dynamic user's cache lives under /var/cache/private.
     sys.remove(&paths.cache)?;
     sys.remove_dir_all(&paths.cache)?;
-    sys.remove_dir_all(Path::new("/var/cache/private/sinkhole"))?;
+    sys.remove_dir_all(Path::new("/var/cache/private/sinkd"))?;
     sys.remove_dir_all(&paths.state)?;
     if options.purge {
         if let Some(dir) = paths.config.parent() {
@@ -436,14 +436,12 @@ mod tests {
         assert!(start < dns);
         let unit = String::from_utf8(sys.files[&unit_path()].clone()).unwrap();
         assert!(unit.contains("DynamicUser=yes"));
-        assert!(unit.contains(
-            "ExecStart=/usr/local/bin/sinkhole run --config /etc/sinkhole/sinkhole.toml"
-        ));
+        assert!(unit.contains("ExecStart=/usr/local/bin/sinkd run --config /etc/sinkd/sinkd.toml"));
 
         sys.log.clear();
         uninstall(&mut sys, &paths, &Options::default()).unwrap();
         assert!(!sys.files.contains_key(&dropin_path()));
-        assert!(sys.ran("/usr/bin/systemctl disable --now sinkhole.service"));
+        assert!(sys.ran("/usr/bin/systemctl disable --now sinkd.service"));
         assert!(!sys.files.contains_key(&paths.backup()));
     }
 
@@ -468,7 +466,7 @@ mod tests {
         assert!(format!("{err:#}").contains("NetworkManager"), "{err:#}");
         assert!(sys.links.contains_key(Path::new(RESOLV)));
         // The service itself was installed and runs.
-        assert!(sys.ran("/usr/bin/systemctl enable --now sinkhole.service"));
+        assert!(sys.ran("/usr/bin/systemctl enable --now sinkd.service"));
     }
 
     #[test]

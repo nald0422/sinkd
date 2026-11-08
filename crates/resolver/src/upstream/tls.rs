@@ -9,7 +9,7 @@ use rustls::{ClientConfig, RootCertStore};
 #[derive(Debug, Clone, Default)]
 pub enum Roots {
     /// The operating system's verifier and trust settings (Security.framework
-    /// on macOS). sinkhole never adds a root of its own.
+    /// on macOS). sinkd never adds a root of its own.
     #[default]
     System,
     /// Only these roots, DER-encoded. For tests against local servers.

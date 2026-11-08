@@ -84,12 +84,12 @@ function page() {
   const url = (host, path) => `http://${host}${path}`;
   return `<!doctype html><title>test</title>
 <script>window.results = {};</script>
-<script src="${url("ads.sinkhole.test", "/ad.js")}" onerror="results.adBlocked = true"></script>
-<script src="${url("ads.sinkhole.test", "/allowed.js")}"></script>
+<script src="${url("ads.sinkd.test", "/ad.js")}" onerror="results.adBlocked = true"></script>
+<script src="${url("ads.sinkd.test", "/allowed.js")}"></script>
 <script src="${url("pagead2.googlesyndication.com", "/pagead/js/adsbygoogle.js")}"></script>
 <script src="${url("www.googletagservices.com", "/tag/js/gpt.js")}"></script>
 <script src="${url("www.google-analytics.com", "/analytics.js")}"></script>
-<img src="${url("tracker.sinkhole.test", "/t.gif")}"
+<img src="${url("tracker.sinkd.test", "/t.gif")}"
      onload="results.trackerLoaded = true" onerror="results.trackerBlocked = true">
 <script>
   results.adsbygoogle = !!(window.adsbygoogle && window.adsbygoogle.loaded);
@@ -103,7 +103,7 @@ function page() {
  * background script, and `send(request)` from the popup.
  */
 async function launch(extension, port) {
-  const profile = mkdtempSync(join(tmpdir(), "sinkhole-e2e-"));
+  const profile = mkdtempSync(join(tmpdir(), "sinkd-e2e-"));
   if (firefox) {
     const ff = await launchFirefox(extension, profile, {
       proxy: { server: `http://127.0.0.1:${port}` },
@@ -204,8 +204,8 @@ async function run() {
     const r = await results(tab);
     assert.equal(r.trackerBlocked, true);
     log.length = 0;
-    await tab.goto("http://tracker.sinkhole.test/landing");
-    assert.ok(log.includes("tracker.sinkhole.test/landing"), "first-party visit allowed");
+    await tab.goto("http://tracker.sinkd.test/landing");
+    assert.ok(log.includes("tracker.sinkd.test/landing"), "first-party visit allowed");
   });
   check("serves surrogates, which never reach the network", async () => {
     log.length = 0;

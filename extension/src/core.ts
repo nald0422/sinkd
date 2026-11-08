@@ -1,11 +1,11 @@
 // The extension's decisions, as pure functions, so they can be tested
 // without a browser. The background script and the popup only glue these
 // to chrome.* APIs. Request matching happens in the browser's DNR engine,
-// from the rulesets `sinkhole compile` produced; cosmetic matching in the
+// from the rulesets `sinkd compile` produced; cosmetic matching in the
 // Rust page engine (engine.ts); scriptlets pick their own calls by
 // hostname. Firefox adds CNAME uncloaking, the one thing matched here.
 
-/** An entry of rulesets.json, written by `sinkhole compile`. */
+/** An entry of rulesets.json, written by `sinkd compile`. */
 export interface RulesetInfo {
   id: string;
   name: string;
@@ -103,7 +103,7 @@ const isFeature = (id: unknown): id is FeatureId =>
 export interface Settings {
   /** Rulesets switched off, by id. */
   disabledRulesets: string[];
-  /** Hostnames where sinkhole is off (and every name below them). */
+  /** Hostnames where sinkd is off (and every name below them). */
   pausedSites: string[];
   /** Features switched off everywhere. */
   disabledFeatures: FeatureId[];
@@ -111,7 +111,7 @@ export interface Settings {
   siteExceptions: Partial<Record<FeatureId, string[]>>;
   /**
    * Runtime only, never stored: the resolver on this computer is paused
-   * (`sinkhole pause`, through the bridge), so sinkhole is off everywhere.
+   * (`sinkd pause`, through the bridge), so sinkd is off everywhere.
    */
   pausedAll?: boolean;
 }
@@ -153,7 +153,7 @@ export function normalizeSettings(raw: unknown): Settings {
 
 /**
  * The site a URL belongs to, for the per-site switch: its hostname without
- * a leading `www.`. `null` for pages sinkhole does not act on (extension
+ * a leading `www.`. `null` for pages sinkd does not act on (extension
  * pages, `chrome://`, `file://`).
  */
 export function siteOf(url: string): string | null {
@@ -237,7 +237,7 @@ export function withSiteException(
 }
 
 /**
- * The dynamic rule that turns sinkhole off on the paused sites:
+ * The dynamic rule that turns sinkd off on the paused sites:
  * allowAllRequests on their pages and frames, above every compiled rule, so
  * nothing on them is blocked, redirected or rewritten. With `all`, on every
  * page. `null` when nothing is paused.
@@ -716,7 +716,7 @@ export function registrableDomain(host: string, suffixes: readonly string[]): st
 
 // ------------------------------------------------------- CNAME uncloaking
 
-/** An entry of uncloak.json, written by `sinkhole compile`. */
+/** An entry of uncloak.json, written by `sinkd compile`. */
 export interface UncloakEntry {
   ruleset: string;
   /** Hosts its plain `||host^` block rules name. */
@@ -959,8 +959,8 @@ export type Request =
 
 // --------------------------------------------------------------- the bridge
 
-/** The native-messaging host (`sinkhole native-host`, crates/cli/src/bridge.rs). */
-export const BRIDGE_HOST = "sinkhole.bridge";
+/** The native-messaging host (`sinkd native-host`, crates/cli/src/bridge.rs). */
+export const BRIDGE_HOST = "io.github.nald0422.sinkd";
 export const BRIDGE_ALLOW_RULE_ID = 10;
 export const BRIDGE_BLOCK_RULE_ID = 11;
 /** `*.example.com` entries need a regex rule each, numbered from here. */
@@ -1165,6 +1165,6 @@ export interface State {
   }[];
   /** Set when something else (policy, another extension) controls the WebRTC setting. */
   webrtcBlockedBy: string | null;
-  /** The bridge to the sinkhole command line; `granted` once the user allowed it. */
+  /** The bridge to the sinkd command line; `granted` once the user allowed it. */
   bridge: Bridge & { granted: boolean; supported: boolean };
 }
