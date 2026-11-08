@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "sinkd",
   "version": "0.0.0",
-  "description": "Blocks ads and trackers, strips tracking parameters and cookies, and adds fingerprinting protection, with rules compiled from filter lists. No remote code.",
+  "description": "Blocks ads and trackers, strips tracking parameters and cookies, adds fingerprinting protection. No remote code, no data collected.",
   "minimum_chrome_version": "128",
   "permissions": ["cookies", "declarativeNetRequest", "privacy", "scripting", "storage"],
   "optional_permissions": ["nativeMessaging"],

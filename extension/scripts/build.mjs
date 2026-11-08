@@ -37,6 +37,8 @@ const repo = resolve(root, "..");
 
 /** The add-on ID Firefox knows the extension by: permanent once published. */
 export const FIREFOX_ID = "sinkd@nald0422.github.io";
+/** The longest manifest description the Chrome Web Store accepts. */
+const MAX_DESCRIPTION = 132;
 
 /**
  * The Chrome manifest, made Firefox's: an event page instead of a service
@@ -167,6 +169,12 @@ export function build(options = {}) {
     manifest = firefoxManifest(manifest);
   }
   manifest.version = pkg.version;
+  // The Chrome Web Store refuses a longer one at upload.
+  if (manifest.description.length > MAX_DESCRIPTION) {
+    throw new Error(
+      `manifest description is ${manifest.description.length} characters; the store allows ${MAX_DESCRIPTION}`,
+    );
+  }
   manifest.declarative_net_request.rule_resources = index.map((r) => ({
     id: r.id,
     enabled: r.enabled,
