@@ -19,7 +19,8 @@
     "testbed": "node ../testbed/run.mjs",
     "testbed:firefox": "node ../testbed/run.mjs --browser firefox",
     "e2e:bridge": "node e2e/bridge.mjs",
-    "e2e:bridge:firefox": "node e2e/bridge.mjs --browser firefox"
+    "e2e:bridge:firefox": "node e2e/bridge.mjs --browser firefox",
+    "package": "node scripts/package.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

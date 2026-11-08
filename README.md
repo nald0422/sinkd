@@ -405,6 +405,14 @@ performance budgets; the third does both in Firefox, on `dist-firefox/`.
 The rulesets compile from GPL and CC BY-SA lists. `NOTICES.txt` in each
 build names them and their licenses.
 
+For the stores, `npm run package` makes release builds (without the test
+permission `--dev` adds) from the cached lists. It zips them into
+`release/`, with the source bundle Mozilla asks for; the bundle rebuilds
+the packages file for file (see `extension/BUILDING.md`).
+`node scripts/store-images.mjs` makes the screenshot and promo tile. The
+listing text and the privacy policy are in `docs/store-listing.md` and
+`docs/privacy.md`.
+
 ## Recovery
 
 `sudo sinkd uninstall` restores the DNS settings exactly as they were
