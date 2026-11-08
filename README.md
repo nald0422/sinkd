@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/basalt/wordmark.png">
+    <img alt="sinkd" src="docs/brand/stone/wordmark.png" width="280">
+  </picture>
+</p>
+
 # sinkd
 
 A Rust ad blocker and anti-tracking tool in three parts that share one rule
@@ -86,7 +93,7 @@ extension/       the MV3 extension for Chromium and Firefox (TypeScript glue ove
 testbed/         local pages that detect blockers and track, and the harness that loads them
 fuzz/            fuzz targets for the parsers, the DNS handling and the config
 config/          a trial config (port 5300) and a tiny blocklist
-docs/            the manual breakage checklist
+docs/            the manual breakage checklist, privacy policy, store listing and brand kit
 DESIGN.md        decisions and measurements
 ```
 
@@ -409,7 +416,9 @@ For the stores, `npm run package` makes release builds (without the test
 permission `--dev` adds) from the cached lists. It zips them into
 `release/`, with the source bundle Mozilla asks for; the bundle rebuilds
 the packages file for file (see `extension/BUILDING.md`).
-`node scripts/store-images.mjs` makes the screenshot and promo tile. The
+`node scripts/store-images.mjs` makes the screenshot and promo tile, and
+`node scripts/logo.mjs` the logo, the icons and the brand kit in
+`docs/brand/`. The
 listing text and the privacy policy are in `docs/store-listing.md` and
 `docs/privacy.md`.
 
