@@ -241,17 +241,45 @@ fn extension_lists(o: &CheckOptions<'_>) -> Result<Vec<ListInput>> {
         )
     })?;
     let manifest = Manifest::from_toml(&text)?;
-    let cache = Cache::new(match &o.cache {
-        Some(dir) => dir.clone(),
-        None => sinkd_lists::default_cache_dir()
-            .ok_or_else(|| anyhow!("no home directory for the list cache; pass --cache"))?,
-    });
     let base = o.rulesets.parent().unwrap_or(Path::new("."));
-    let (inputs, missing) = list_inputs(&manifest, base, &cache)?;
+    let candidates: Vec<PathBuf> = match &o.cache {
+        Some(dir) => vec![dir.clone()],
+        // `sinkd compile` and `npm run build` keep their lists in the
+        // per-user cache unless told otherwise; a build run with
+        // `--cache build/list-cache` keeps them beside the manifest.
+        None => sinkd_lists::default_cache_dir()
+            .into_iter()
+            .chain([base.join("build").join("list-cache")])
+            .collect(),
+    };
+    let (inputs, missing) = fullest_cache(&manifest, base, &candidates)?;
     for name in &missing {
         println!("note: {name} is not in the list cache; run `sinkd compile` once");
     }
     Ok(inputs)
+}
+
+/// The lists from whichever of `caches` has the most of them (the first,
+/// on a tie), and the names of the ones it lacks.
+fn fullest_cache(
+    manifest: &Manifest,
+    base: &Path,
+    caches: &[PathBuf],
+) -> Result<(Vec<ListInput>, Vec<String>)> {
+    let mut best: Option<(Vec<ListInput>, Vec<String>)> = None;
+    for dir in caches {
+        let found = list_inputs(manifest, base, &Cache::new(dir.clone()))?;
+        if best
+            .as_ref()
+            .is_none_or(|(_, missing)| found.1.len() < missing.len())
+        {
+            best = Some(found);
+        }
+        if best.as_ref().is_some_and(|(_, missing)| missing.is_empty()) {
+            break;
+        }
+    }
+    best.ok_or_else(|| anyhow!("no home directory for the list cache; pass --cache"))
 }
 
 fn describe_source(s: &Source) -> String {
@@ -410,6 +438,38 @@ fn page(lists: &[ListInput], rulesets: &Path, host: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_cache_with_the_lists_wins() {
+        let dir = std::env::temp_dir().join(format!("sinkd-check-{}", std::process::id()));
+        let (home, build) = (dir.join("home"), dir.join("build").join("list-cache"));
+        std::fs::create_dir_all(&home).unwrap();
+        let url = "https://lists.example/ads.txt";
+        let manifest = Manifest::from_toml(&format!(
+            "[[ruleset]]\nid = \"ads\"\nname = \"Ads\"\nlists = [\"ads\"]\n\n[[list]]\nname = \"ads\"\nurl = \"{url}\"\n"
+        ))
+        .unwrap();
+        let meta = sinkd_lists::Meta {
+            url: url.into(),
+            etag: None,
+            last_modified: None,
+            fetched_at: 0,
+            rules: 1,
+            expires_secs: None,
+            digest: String::new(),
+        };
+        Cache::new(build.clone())
+            .store(&meta, b"||ads.example^\n")
+            .unwrap();
+
+        let (inputs, missing) = fullest_cache(&manifest, &dir, &[home.clone(), build]).unwrap();
+        assert!(missing.is_empty());
+        assert!(inputs[0].text.contains("||ads.example^"));
+        let (inputs, missing) = fullest_cache(&manifest, &dir, &[home]).unwrap();
+        assert!(inputs.is_empty());
+        assert_eq!(missing, ["ads"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn hosts_and_types() {

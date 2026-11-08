@@ -106,7 +106,8 @@ enum Command {
         /// The extension's build manifest.
         #[arg(long, default_value = "extension/rulesets.toml")]
         rulesets: PathBuf,
-        /// The extension's list cache. Default: the per-user cache.
+        /// The extension's list cache. Default: the per-user cache or
+        /// `build/list-cache` beside the manifest, whichever has the lists.
         #[arg(long)]
         cache: Option<PathBuf>,
     },
