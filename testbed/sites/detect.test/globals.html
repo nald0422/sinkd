@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part C (1): ad script globals</title>
+<!-- A site checks that its ad scripts ran: their globals exist, their
+     queues execute, and no onerror fired. -->
+<script>
+  window.results = { detections: [], errors: [], early: { canRunAds: window.canRunAds === true } };
+  function detect(why) { results.detections.push(why); }
+  addEventListener("error", (e) => results.errors.push(String((e.error && e.error.stack) || e.message)));
+  window.googletag = window.googletag || { cmd: [] };
+  window.adsbygoogle = window.adsbygoogle || [];
+</script>
+<script src="http://ads.detect-cdn.test/ads.js" onerror="detect('ads.js: onerror')"></script>
+<script src="http://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
+        onerror="detect('adsbygoogle.js: onerror')"></script>
+<script src="http://www.googletagservices.com/tag/js/gpt.js" onerror="detect('gpt.js: onerror')"></script>
+<script src="http://www.google-analytics.com/analytics.js" onerror="detect('analytics.js: onerror')"></script>
+<script>
+  if (window.canRunAds !== true) detect("canRunAds is not set");
+  if (!(window.adsbygoogle && window.adsbygoogle.loaded)) detect("adsbygoogle.loaded is not set");
+  if (typeof window.ga !== "function") detect("ga() is missing");
+  let gptRan = false;
+  let gaCalledBack = false;
+  googletag.cmd.push(() => { gptRan = true; });
+  if (typeof window.ga === "function") ga("send", "pageview", { hitCallback: () => { gaCalledBack = true; } });
+  addEventListener("load", () => setTimeout(() => {
+    if (!gptRan) detect("googletag.cmd never ran");
+    if (!gaCalledBack) detect("ga hitCallback never ran");
+    results.done = true;
+  }, 300));
+</script>
+<h1>Ad script globals</h1>

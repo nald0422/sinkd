@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part B (4): first-party tracking cookies</title>
+<!-- Two-year cookies set by script (Google Analytics style) next to the
+     server's (_fbp, sid). Tracking ones must expire within a week. -->
+<script>
+  const twoYears = 60 * 60 * 24 * 365 * 2;
+  document.cookie = `_ga=GA1.1.123.456; max-age=${twoYears}; path=/`;
+  document.cookie = `_ga_TEST123=GS1.1.789; max-age=${twoYears}; path=/`;
+  document.cookie = `prefs=dark; max-age=${twoYears}; path=/`;
+  window.results = { done: true };
+</script>

@@ -1,0 +1,13 @@
+! A tiny list in the three syntaxes the resolver reads. Real lists replace
+! it in milestone 3, when sinkhole can fetch them.
+
+# hosts-file syntax
+0.0.0.0 doubleclick.net
+0.0.0.0 googleadservices.com
+
+# one name per line
+google-analytics.com
+
+# adblock syntax (only whole-host rules apply to DNS)
+||googlesyndication.com^
+||adnxs.com^

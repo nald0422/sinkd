@@ -1,0 +1,63 @@
+! Rules for the testbed's pages. Every hostname here is answered by the
+! testbed's local server and nothing else.
+
+! ---- Part C (1): the site's own ad script is blocked ----------------------
+! A plain block would fire the script's onerror; the redirect serves an
+! empty script instead, and the scriptlet sets the global the real one
+! would have set.
+||ads.detect-cdn.test^
+||ads.detect-cdn.test/ads.js$script,redirect=noop.js
+detect.test##+js(set-constant, canRunAds, true)
+
+! ---- Part C (2): bait --------------------------------------------------------
+! Generic rules for the class names detectors use as bait. The compiler
+! must leave these out (page:bait-generic), so the bait stays visible.
+##.adsbox
+##.ad-banner
+##.pub_300x250
+##.textAd
+##.text-ad-links
+###ad-slot
+##ins.adsbygoogle
+! A generic rule that is not bait, and must apply.
+##.sponsored-widget
+
+! ---- Part C (3): probes ------------------------------------------------------
+! fetch and XHR to an ad URL get a plausible empty 200, not a network
+! error; an image probe gets a 1x1 GIF.
+detect.test##+js(prevent-fetch, detect-cdn.test)
+detect.test##+js(prevent-xhr, detect-cdn.test)
+||ads.detect-cdn.test/*.gif$image,redirect=1x1.gif
+
+! ---- Part C (4): the detector itself --------------------------------------
+! Scriptlets that neutralize detection scripts. Each one patches a
+! built-in, so the stealth checks cover them: toString, descriptors,
+! stacks.
+detect.test##+js(abort-on-property-write, adblockDetector)
+detect.test##+js(abort-on-property-read, blockAdBlock)
+detect.test##+js(abort-current-script, adHelpers, adCheck)
+detect.test##+js(prevent-setTimeout, adblockNotice)
+detect.test##+js(prevent-setInterval, adblockPoll)
+detect.test##+js(json-prune, adblockWall)
+detect.test##+js(addEventListener-defuser, load, adblockOnLoad)
+detect.test##+js(no-window-open-if, popunder)
+! A chain through a native getter that is still null at document_start
+! (document.body). The scriptlet must leave it alone: trapping it would
+! hide <body> from the page, and every page here appends to it.
+detect.test##+js(abort-current-script, document.body.appendChild, adCheck)
+
+! ---- Cosmetic filtering ----------------------------------------------------
+cosmetic.test##.promo-box
+cosmetic.test##.sticky-bar:style(position: static !important)
+cosmetic.test##div.card:has-text(Sponsored)
+cosmetic.test##.overlay:remove()
+cosmetic.test##.ad-label:upward(2)
+cosmetic.test##+js(remove-class, blur, .article)
+exempt.test#@#.sponsored-widget
+@@||generichide.test^$generichide
+generichide.test##.promo-box
+@@||elemhide.test^$elemhide
+elemhide.test##.promo-box
+
+! ---- Part B: trackers ------------------------------------------------------
+||tracker.track-cdn.test^$third-party

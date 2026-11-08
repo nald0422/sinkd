@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part C: detection scripts</title>
+<!-- Detection scripts in the shapes community scriptlets neutralize. Each
+     reports only if the bait script was blocked, so without a blocker none
+     fire; with a naive blocker all fire; with scriptlets none get to. -->
+<script>
+  window.results = { detections: [], errors: [] };
+  function detect(why) { results.detections.push(why); }
+  addEventListener("error", (e) => results.errors.push(String((e.error && e.error.stack) || e.message)));
+  window.adHelpers = { version: 1 };
+</script>
+<script src="http://ads.detect-cdn.test/bait/advert.js" onerror="window.baitBlocked = true"></script>
+<script>
+  // abort-on-property-write
+  window.adblockDetector = { blocked: window.baitBlocked === true };
+  if (adblockDetector.blocked) detect("detector 1 (writes its global)");
+</script>
+<script>
+  // abort-on-property-read
+  window.blockAdBlock = { onDetected: (cb) => { if (window.baitBlocked) cb(); } };
+  blockAdBlock.onDetected(() => detect("detector 2 (reads its global)"));
+</script>
+<script>
+  const adCheck = () => adHelpers.version && window.baitBlocked;
+  if (adCheck()) detect("detector 3 (inline script)");
+</script>
+<script>
+  setTimeout(function adblockNotice() {
+    if (window.baitBlocked) detect("detector 4 (setTimeout)");
+  }, 50);
+  const poll = setInterval(function adblockPoll() {
+    clearInterval(poll);
+    if (window.baitBlocked) detect("detector 5 (setInterval)");
+  }, 50);
+  const config = JSON.parse('{"adblockWall": true, "title": "news"}');
+  if (config.adblockWall && window.baitBlocked) detect("detector 6 (JSON config)");
+  addEventListener("load", function adblockOnLoad() {
+    if (window.baitBlocked) detect("detector 7 (load listener)");
+  });
+  addEventListener("load", () => setTimeout(() => { results.done = true; }, 300));
+</script>

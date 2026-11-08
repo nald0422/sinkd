@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Cosmetic exceptions: exempt.test</title>
+<!-- See lists/testbed.txt for the exception that applies to exempt.test. -->
+<body>
+<div class="promo-box" id="specific">Specific hiding</div>
+<div class="sponsored-widget" id="generic">Generic hiding</div>
+<script>
+  addEventListener("load", () => setTimeout(() => {
+    const late = document.createElement("div");
+    late.className = "sponsored-widget";
+    late.id = "late-generic";
+    document.body.appendChild(late);
+  }, 200));
+</script>
+</body>

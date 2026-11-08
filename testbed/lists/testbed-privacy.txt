@@ -1,0 +1,11 @@
+! Trackers for the privacy checks. Cookies and Referer are stripped from
+! third-party requests to them that get through.
+||cookie-tracker.test^$third-party
+! Let through anyway, as list exceptions do to keep sites working.
+@@||cookie-tracker.test/allowed.gif
+! CNAME uncloaking (Firefox): a tracker that sites alias their own
+! subdomains to, one of its hosts let through, and a name that only the
+! site itself aliases to (not cloaking).
+||cname-tracker.test^
+@@||api.cname-tracker.test^
+||edge.cloak.test^

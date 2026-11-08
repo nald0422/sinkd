@@ -1,0 +1,139 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --locked --workspace
+      # The wasm engine needs core without config or IDNA.
+      - run: cargo check -p sinkhole-core --no-default-features --features page --target wasm32-unknown-unknown
+      - run: cargo clippy -p sinkhole-engine-wasm --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo bench --workspace --no-run
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      # The fixture half of the end-to-end test only: it builds from local
+      # lists and serves every page from a local server. The real-lists half
+      # would fetch EasyList and friends, and CI stays off the network.
+      - run: npx playwright-core install --with-deps chromium firefox
+      - run: npm run e2e -- --skip-real
+      - run: npm run e2e:firefox -- --skip-real
+      # Detection and tracking pages, all local; --real and --bench need
+      # the public lists and stay off CI.
+      - run: npm run testbed
+      - run: npm run testbed:firefox
+      # The browser bridge: CLI -> native host -> extension, all scratch.
+      - run: npm run e2e:bridge
+      - run: npm run e2e:bridge:firefox
+
+  fuzz:
+    # Every target for 30 s on stable: catches a crash a change brings in.
+    # Longer runs are for `fuzz/run.sh <target> <seconds>` by hand.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - run: cargo fmt --check
+        working-directory: fuzz
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: fuzz
+      - run: JOBS=4 fuzz/run.sh "" 30
+
+  install:
+    # A real install and uninstall on the runner (systemd-resolved), then a
+    # check that the DNS settings are exactly as before. No public lists:
+    # the config blocks one local name and forwards to the runner's own
+    # resolver.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked --release -p sinkhole-cli
+      - name: Config
+        run: |
+          upstream=$(grep -m1 '^nameserver' /run/systemd/resolve/resolv.conf | awk '{print $2}')
+          sudo mkdir -p /etc/sinkhole
+          sudo tee /etc/sinkhole/sinkhole.toml >/dev/null <<EOF
+          block = ["sinkhole-ci.test"]
+          [listen]
+          addrs = ["127.0.0.1:53", "[::1]:53"]
+          [updates]
+          cache_dir = "/var/cache/sinkhole"
+          [control]
+          socket = "/run/sinkhole/control.sock"
+          [[upstream]]
+          protocol = "udp"
+          addr = "${upstream}:53"
+          EOF
+      - name: Before
+        run: |
+          ls -l /etc/resolv.conf > before.txt
+          ls /etc/systemd/resolved.conf.d/ >> before.txt 2>&1 || true
+          resolvectl dns >> before.txt
+      - run: ./target/release/sinkhole install --dry-run
+      - run: sudo ./target/release/sinkhole install
+      - run: sinkhole doctor
+      - name: A blocked name resolves to 0.0.0.0 through the system
+        run: getent ahosts sinkhole-ci.test | grep -q '^0\.0\.0\.0'
+      - run: sudo sinkhole uninstall --purge
+      - name: After matches before
+        run: |
+          ls -l /etc/resolv.conf > after.txt
+          ls /etc/systemd/resolved.conf.d/ >> after.txt 2>&1 || true
+          resolvectl dns >> after.txt
+          diff before.txt after.txt
+          ! systemctl cat sinkhole.service 2>/dev/null
+          ! test -e /usr/local/bin/sinkhole

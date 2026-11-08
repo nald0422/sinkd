@@ -1,0 +1,46 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part B (1, 6): trackers, pings and beacons</title>
+<!-- Third-party tracker requests of every kind a page can make. None may
+     reach the network; the first-party image must. The second group are
+     well-known tracker endpoints from the public lists, checked when the
+     harness runs the real build (--real). -->
+<script>
+  window.results = { detections: [], errors: [] };
+  addEventListener("error", (e) => results.errors.push(String((e.error && e.error.stack) || e.message)));
+</script>
+<body>
+<img src="http://tracker.track-cdn.test/pixel.gif" alt="">
+<script src="http://tracker.track-cdn.test/tag.js"></script>
+<img src="http://track.test/own.gif" alt="" onload="results.ownImage = true">
+<a id="ping" href="/landing" ping="http://tracker.track-cdn.test/ping">A link with ping=""</a>
+<script>
+  navigator.sendBeacon("http://tracker.track-cdn.test/beacon", "event=view");
+  fetch("http://tracker.track-cdn.test/collect", { mode: "no-cors", method: "POST", body: "x" }).catch(() => {});
+  const real = [
+    "http://www.google-analytics.com/collect?v=1&t=pageview",
+    "http://www.googletagmanager.com/gtag/js?id=G-TEST",
+    "http://connect.facebook.net/en_US/fbevents.js",
+    "http://www.facebook.com/tr?id=1&ev=PageView",
+    "http://bat.bing.com/bat.js",
+    "http://static.hotjar.com/c/hotjar-1.js?sv=6",
+    "http://pixel.quantserve.com/pixel/p-test.gif",
+    "http://sb.scorecardresearch.com/beacon.js",
+    "http://stats.g.doubleclick.net/g/collect?v=2",
+    "http://ct.pinterest.com/v3/?event=init",
+    "http://analytics.tiktok.com/i18n/pixel/events.js",
+    "http://snap.licdn.com/li.lms-analytics/insight.min.js",
+  ];
+  results.real = real;
+  for (const url of real) {
+    if (url.includes(".js")) {
+      const s = document.createElement("script");
+      s.src = url;
+      document.head.appendChild(s);
+    } else {
+      new Image().src = url;
+    }
+  }
+  addEventListener("load", () => setTimeout(() => { results.done = true; }, 300));
+</script>
+</body>

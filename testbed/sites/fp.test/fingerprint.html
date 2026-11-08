@@ -1,0 +1,134 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part B (9): fingerprinting</title>
+<!-- What fingerprinting scripts hash: canvas pixels (whole and in part),
+     WebGL pixels and renderer, an audio rendering, hardware figures, and the
+     same canvas from a third-party frame. Served as fp.test and fp-b.test:
+     two sites, one page. -->
+<script>
+  const fnv = (text) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0");
+  };
+  const bytes = (array) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < array.length; i++) {
+      h ^= array[i];
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0");
+  };
+  function drawCanvas() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 240;
+    canvas.height = 60;
+    const ctx = canvas.getContext("2d");
+    ctx.textBaseline = "top";
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(100, 1, 62, 20);
+    ctx.fillStyle = "#069";
+    ctx.fillText("Cwm fjordbank glyphs vext quiz", 2, 15);
+    ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+    ctx.fillText("Cwm fjordbank glyphs vext quiz", 4, 17);
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = "rgb(255, 0, 255)";
+    ctx.beginPath();
+    ctx.arc(50, 50, 50, 0, Math.PI * 2, true);
+    ctx.fill();
+    return canvas;
+  }
+  function canvasHashes() {
+    const canvas = drawCanvas();
+    const ctx = canvas.getContext("2d");
+    const whole = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    // The same pixels, read in part: must agree with the whole.
+    const part = ctx.getImageData(20, 10, 50, 30).data;
+    let partOfWhole = [];
+    for (let y = 10; y < 40; y++) {
+      for (let x = 20; x < 70; x++) {
+        const i = (y * canvas.width + x) * 4;
+        partOfWhole.push(whole[i], whole[i + 1], whole[i + 2], whole[i + 3]);
+      }
+    }
+    return {
+      dataURL: fnv(canvas.toDataURL()),
+      imageData: bytes(whole),
+      partAgrees: bytes(part) === bytes(partOfWhole),
+    };
+  }
+  // In the first inline script: before the extension's seed can arrive.
+  window.results = { early: canvasHashes().dataURL };
+</script>
+<body>
+<iframe id="frame" src="http://fp-frame.test/frame.html" width="10" height="10"></iframe>
+<script>
+  function blank() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 50;
+    canvas.height = 50;
+    return canvas.toDataURL();
+  }
+  function webgl() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
+    if (!gl) return null;
+    gl.enable(gl.SCISSOR_TEST);
+    for (let i = 0; i < 8; i++) {
+      gl.scissor(i * 8, 0, 8, 64);
+      gl.clearColor(i / 8, 0.4, 1 - i / 8, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    const pixels = new Uint8Array(64 * 64 * 4);
+    gl.readPixels(0, 0, 64, 64, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    return {
+      renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
+      pixels: bytes(pixels),
+      dataURL: fnv(canvas.toDataURL()),
+    };
+  }
+  async function audio() {
+    const ctx = new OfflineAudioContext(1, 5000, 44100);
+    const oscillator = ctx.createOscillator();
+    oscillator.type = "triangle";
+    oscillator.frequency.value = 10000;
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -50;
+    compressor.knee.value = 40;
+    compressor.ratio.value = 12;
+    compressor.attack.value = 0;
+    compressor.release.value = 0.25;
+    oscillator.connect(compressor);
+    compressor.connect(ctx.destination);
+    oscillator.start(0);
+    const buffer = await ctx.startRendering();
+    const data = buffer.getChannelData(0);
+    let sum = 0;
+    for (let i = 4500; i < 5000; i++) sum += Math.abs(data[i]);
+    // Read again: must be the same samples.
+    const again = buffer.getChannelData(0)[4600] === data[4600];
+    return { sum: String(sum), stable: again };
+  }
+  const frame = new Promise((done) =>
+    addEventListener("message", (e) => e.data?.frameCanvas && done(e.data.frameCanvas)),
+  );
+  addEventListener("load", () => setTimeout(async () => {
+    Object.assign(results, canvasHashes(), {
+      blank: blank(),
+      webgl: webgl(),
+      audio: await audio(),
+      cores: navigator.hardwareConcurrency,
+      memory: navigator.deviceMemory ?? null,
+      frame: await frame,
+    });
+    results.done = true;
+  }, 150));
+</script>
+</body>

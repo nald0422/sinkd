@@ -1,0 +1,12 @@
+! Title: sinkhole surrogates (ads)
+! License: MIT OR Apache-2.0
+!
+! Serves bundled stand-ins for common ad scripts instead of blocking them
+! outright, so pages that wait on googletag or adsbygoogle keep working.
+! A redirect outranks a plain block from any list.
+||googletagservices.com/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
+||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
+||pagead2.googlesyndication.com/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
+||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect=googlesyndication_adsbygoogle.js
+||pagead2.googlesyndication.com/pagead/show_ads.js$script,redirect=googlesyndication_adsbygoogle.js
+||c.amazon-adsystem.com/aax2/apstag.js$script,redirect=amazon_apstag.js

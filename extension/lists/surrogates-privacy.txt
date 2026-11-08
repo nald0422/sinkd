@@ -1,0 +1,10 @@
+! Title: sinkhole surrogates (privacy)
+! License: MIT OR Apache-2.0
+!
+! Stand-ins for analytics scripts. A stand-in ga() still calls the page's
+! hitCallback, so links and forms that wait on it keep working.
+||google-analytics.com/analytics.js$script,redirect=google-analytics_analytics.js
+||google-analytics.com/ga.js$script,redirect=google-analytics_ga.js
+||googletagmanager.com/gtm.js$script,redirect=googletagmanager_gtm.js
+||googletagmanager.com/gtag/js$script,redirect=googletagmanager_gtm.js
+||scorecardresearch.com/beacon.js$script,redirect=scorecardresearch_beacon.js

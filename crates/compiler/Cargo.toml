@@ -1,0 +1,27 @@
+[package]
+name = "sinkhole-compiler"
+description = "Compiles filter lists into target outputs: Chrome declarativeNetRequest rulesets, the resolver's domain set, and a report of what each target cannot express."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+bench = false
+
+[dependencies]
+regex.workspace = true
+regex-syntax.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sinkhole-core = { workspace = true, features = ["config", "page"] }
+sinkhole-filters.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

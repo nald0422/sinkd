@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>sinkhole</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>sinkhole</h1>
+    <p id="site" class="muted"></p>
+  </header>
+  <section id="access" class="access" hidden>
+    <p>sinkhole can't act on pages: its access to sites was turned off.</p>
+    <button type="button" id="grant">Allow on all sites</button>
+  </section>
+  <section class="site">
+    <label class="switch">
+      <input type="checkbox" id="site-toggle">
+      <span id="site-label">On for this site</span>
+    </label>
+    <ul id="site-features"></ul>
+  </section>
+  <section>
+    <h2>Blocking</h2>
+    <ul id="rulesets"></ul>
+  </section>
+  <section>
+    <h2>Privacy</h2>
+    <ul id="features"></ul>
+    <p id="webrtc-note" class="muted note" hidden></p>
+  </section>
+  <section id="bridge" hidden>
+    <h2>sinkhole on this computer</h2>
+    <p id="bridge-status" class="muted note"></p>
+    <button type="button" id="bridge-button" class="action">Connect</button>
+  </section>
+  <footer class="muted" id="quota"></footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

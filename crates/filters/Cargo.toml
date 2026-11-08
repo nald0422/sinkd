@@ -1,0 +1,31 @@
+[package]
+name = "sinkhole-filters"
+description = "Lossless parser for ABP, uBlock Origin and AdGuard filter syntax."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Criterion owns `cargo bench`; the libtest harness would reject its flags.
+[lib]
+bench = false
+
+[dependencies]
+memchr.workspace = true
+serde.workspace = true
+sinkhole-core = { workspace = true, features = ["idna"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+adblock.workspace = true
+criterion.workspace = true
+proptest.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "parse"
+harness = false

@@ -1,0 +1,101 @@
+# What the extension's static rulesets are built from, by `sinkhole compile`.
+#
+# Each ruleset can be switched off on its own in the extension. Every
+# $removeparam rule goes to `params`, whichever list it came from, so
+# parameter stripping is one switch.
+#
+# The lists from easylist.to and uBlock Origin's uAssets are fetched at build
+# time and are not part of this repository. Their licenses (GPL-3.0, and
+# CC-BY-SA-3.0 for EasyList) apply to builds that include them.
+
+params_ruleset = "params"
+
+[[ruleset]]
+id = "ads"
+name = "Ads"
+description = "Blocks ads, and serves stand-ins for ad scripts pages depend on."
+lists = ["easylist", "ubo-filters", "ubo-quick-fixes", "surrogates-ads"]
+
+[[ruleset]]
+id = "privacy"
+name = "Trackers"
+description = "Blocks third-party trackers and analytics."
+lists = ["easyprivacy", "ubo-privacy", "surrogates-privacy"]
+# Cookies and Referer are stripped from third-party requests to the hosts
+# these lists block, when such a request gets through anyway.
+trackers = true
+
+[[ruleset]]
+id = "badware"
+name = "Badware"
+description = "Blocks known malware, scam and phishing sites."
+lists = ["ubo-badware"]
+
+[[ruleset]]
+id = "unbreak"
+name = "Fixes"
+description = "Exceptions that undo blocking known to break sites."
+lists = ["ubo-unbreak"]
+
+[[ruleset]]
+id = "params"
+name = "Tracking parameters"
+description = "Removes utm_*, fbclid, gclid and other tracking parameters from links."
+lists = ["tracking-params"]
+
+[[list]]
+name = "easylist"
+url = "https://easylist.to/easylist/easylist.txt"
+license = "GPL-3.0-or-later OR CC-BY-SA-3.0"
+homepage = "https://easylist.to/"
+
+[[list]]
+name = "easyprivacy"
+url = "https://easylist.to/easylist/easyprivacy.txt"
+license = "GPL-3.0-or-later OR CC-BY-SA-3.0"
+homepage = "https://easylist.to/"
+
+[[list]]
+name = "ubo-filters"
+url = "https://ublockorigin.github.io/uAssets/filters/filters.txt"
+license = "GPL-3.0-only"
+homepage = "https://github.com/uBlockOrigin/uAssets"
+
+[[list]]
+name = "ubo-quick-fixes"
+url = "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt"
+license = "GPL-3.0-only"
+homepage = "https://github.com/uBlockOrigin/uAssets"
+
+[[list]]
+name = "ubo-privacy"
+url = "https://ublockorigin.github.io/uAssets/filters/privacy.txt"
+license = "GPL-3.0-only"
+homepage = "https://github.com/uBlockOrigin/uAssets"
+
+[[list]]
+name = "ubo-badware"
+url = "https://ublockorigin.github.io/uAssets/filters/badware.txt"
+license = "GPL-3.0-only"
+homepage = "https://github.com/uBlockOrigin/uAssets"
+
+[[list]]
+name = "ubo-unbreak"
+url = "https://ublockorigin.github.io/uAssets/filters/unbreak.txt"
+license = "GPL-3.0-only"
+homepage = "https://github.com/uBlockOrigin/uAssets"
+
+[[list]]
+name = "surrogates-ads"
+path = "lists/surrogates-ads.txt"
+license = "MIT OR Apache-2.0"
+
+[[list]]
+name = "surrogates-privacy"
+path = "lists/surrogates-privacy.txt"
+license = "MIT OR Apache-2.0"
+
+[[list]]
+name = "tracking-params"
+path = "lists/tracking-params.txt"
+license = "MIT OR Apache-2.0"

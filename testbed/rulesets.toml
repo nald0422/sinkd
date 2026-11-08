@@ -1,0 +1,39 @@
+# The extension as the testbed builds it: the real surrogate and parameter
+# lists, plus testbed.txt, whose rules name only the testbed's own hosts.
+params_ruleset = "params"
+
+[[ruleset]]
+id = "ads"
+name = "Ads"
+lists = ["testbed", "surrogates-ads"]
+
+[[ruleset]]
+id = "privacy"
+name = "Trackers"
+lists = ["testbed-privacy", "surrogates-privacy"]
+trackers = true
+
+[[ruleset]]
+id = "params"
+name = "Tracking parameters"
+lists = ["tracking-params"]
+
+[[list]]
+name = "testbed"
+path = "lists/testbed.txt"
+
+[[list]]
+name = "testbed-privacy"
+path = "lists/testbed-privacy.txt"
+
+[[list]]
+name = "surrogates-ads"
+path = "../extension/lists/surrogates-ads.txt"
+
+[[list]]
+name = "surrogates-privacy"
+path = "../extension/lists/surrogates-privacy.txt"
+
+[[list]]
+name = "tracking-params"
+path = "../extension/lists/tracking-params.txt"

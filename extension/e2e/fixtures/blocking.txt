@@ -1,0 +1,9 @@
+! Rules the end-to-end test checks against, on hostnames that only the
+! test's local server answers.
+||ads.sinkhole.test^
+@@||ads.sinkhole.test/allowed.js$script
+||tracker.sinkhole.test^$third-party
+! Parameter rules that compete for Chrome's one redirect per request: a
+! page load must still lose every tracking parameter.
+$removeparam=s_cid,document
+||site.test^$removeparam=ref_id

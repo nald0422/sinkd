@@ -1,0 +1,34 @@
+# The extension as the end-to-end test builds it: the real surrogate and
+# parameter lists, plus a small fixture list instead of the big public ones.
+params_ruleset = "params"
+
+[[ruleset]]
+id = "ads"
+name = "Ads"
+lists = ["blocking", "surrogates-ads"]
+
+[[ruleset]]
+id = "privacy"
+name = "Trackers"
+lists = ["surrogates-privacy"]
+
+[[ruleset]]
+id = "params"
+name = "Tracking parameters"
+lists = ["tracking-params"]
+
+[[list]]
+name = "blocking"
+path = "blocking.txt"
+
+[[list]]
+name = "surrogates-ads"
+path = "../../lists/surrogates-ads.txt"
+
+[[list]]
+name = "surrogates-privacy"
+path = "../../lists/surrogates-privacy.txt"
+
+[[list]]
+name = "tracking-params"
+path = "../../lists/tracking-params.txt"

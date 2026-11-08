@@ -1,0 +1,39 @@
+[package]
+name = "sinkhole-lists"
+description = "Fetching, caching and checking filter lists for sinkhole."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# A local HTTPS list server with a throwaway CA, for tests here and in the
+# resolver. Never enabled in a release build.
+testing = ["dep:flate2", "dep:rcgen", "dep:tokio", "dep:tokio-rustls"]
+
+[dependencies]
+# Without default features: no aws-lc (rustls uses *ring*, installed in
+# `FetcherBuilder::build`), no HTTP/2 or system proxy lookups. gzip because
+# lists compress about 4:1.
+reqwest = { workspace = true }
+rustls = { workspace = true }
+serde.workspace = true
+serde_json.workspace = true
+sinkhole-core = { workspace = true, features = ["config"] }
+sinkhole-filters.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+flate2 = { workspace = true, optional = true }
+rcgen = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio-rustls = { workspace = true, optional = true }
+
+[dev-dependencies]
+sinkhole-lists = { path = ".", features = ["testing"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+toml.workspace = true
+
+[lints]
+workspace = true

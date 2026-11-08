@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part B (7): Global Privacy Control</title>
+<!-- The harness checks Sec-GPC on this page's request, on a third-party
+     image and on a third-party frame, and navigator.globalPrivacyControl. -->
+<script>window.results = { gpc: navigator.globalPrivacyControl ?? null };</script>
+<img src="http://gpc-cdn.test/pixel.gif" alt="">
+<iframe src="http://gpc-frame.test/blank"></iframe>
+<script>addEventListener("load", () => { results.done = true; });</script>

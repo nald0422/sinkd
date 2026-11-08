@@ -1,0 +1,53 @@
+[package]
+name = "sinkhole-core"
+description = "Domain normalization, the DNS domain matcher and config types for sinkhole. No I/O, no async."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["config", "idna", "page"]
+# Config types and TOML parsing. Off for the wasm engine, which never reads config.
+config = ["dep:serde", "dep:toml", "dep:ipnet"]
+# Unicode domain names -> punycode. Off for the wasm engine: browsers hand it
+# hostnames that are already ASCII, and the IDNA tables are ~300 KB of wasm.
+idna = ["dep:idna"]
+# The per-hostname page index the extension applies in pages. Builds for
+# wasm32: the engine there needs nothing else from this crate.
+page = ["dep:serde", "dep:postcard"]
+
+# Criterion owns `cargo bench`; the libtest harness would reject its flags.
+[lib]
+bench = false
+
+[dependencies]
+ahash.workspace = true
+hashbrown.workspace = true
+idna = { workspace = true, optional = true }
+ipnet = { workspace = true, optional = true }
+memchr.workspace = true
+postcard = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+thiserror.workspace = true
+toml = { workspace = true, optional = true }
+
+# Per-process random hash seeds, so a hostile list or query stream cannot
+# precompute collisions. wasm32-unknown-unknown has no OS randomness without
+# JS glue, and the wasm engine does not use the DNS matcher, so it keeps
+# ahash's fixed keys.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ahash = { workspace = true, features = ["runtime-rng"] }
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "matcher"
+harness = false
+

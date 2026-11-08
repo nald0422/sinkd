@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part B (5): referrer</title>
+<!-- Served with Referrer-Policy: unsafe-url, which would send this page's
+     full URL (with ?secret) to every site it loads from, and to the other
+     origins of its own site (static.ref.test). -->
+<script>window.results = {};</script>
+<img src="http://ref-cdn.test/pixel.gif" alt="">
+<img src="/own.gif" alt="">
+<img src="http://static.ref.test/pixel.gif" alt="">
+<img src="http://cookie-tracker.test/allowed.gif" alt="">
+<script>addEventListener("load", () => { results.done = true; });</script>

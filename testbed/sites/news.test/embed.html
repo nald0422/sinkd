@@ -1,0 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part B (4): third-party tracker cookies</title>
+<!-- Over HTTPS, so the tracker's SameSite=None; Secure cookies would flow.
+     The tracker request itself is let through by a list exception. -->
+<script>window.results = {};</script>
+<img src="https://cookie-tracker.test/allowed.gif" alt="">
+<script>addEventListener("load", () => { results.done = true; });</script>

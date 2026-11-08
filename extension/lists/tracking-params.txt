@@ -1,0 +1,90 @@
+! Title: sinkhole tracking parameters
+! License: MIT OR Apache-2.0
+!
+! Removes tracking parameters from page and background-request URLs.
+! Exact names only: DNR removes parameters by name, so utm_* is spelled
+! out. Names that are also used for function (ref, source, cid) are left
+! alone on purpose.
+
+$removeparam=utm_source
+$removeparam=utm_medium
+$removeparam=utm_campaign
+$removeparam=utm_term
+$removeparam=utm_content
+$removeparam=utm_id
+$removeparam=utm_name
+$removeparam=utm_cid
+$removeparam=utm_reader
+$removeparam=utm_referrer
+$removeparam=utm_social
+$removeparam=utm_social-type
+$removeparam=utm_brand
+$removeparam=utm_place
+$removeparam=utm_pubreferrer
+$removeparam=utm_swu
+$removeparam=utm_viz_id
+$removeparam=utm_source_platform
+$removeparam=utm_creative_format
+$removeparam=utm_marketing_tactic
+$removeparam=fbclid
+$removeparam=gclid
+$removeparam=gclsrc
+$removeparam=dclid
+$removeparam=gbraid
+$removeparam=wbraid
+$removeparam=msclkid
+$removeparam=yclid
+$removeparam=ysclid
+$removeparam=ttclid
+$removeparam=twclid
+$removeparam=li_fat_id
+$removeparam=igshid
+$removeparam=igsh
+$removeparam=mc_eid
+$removeparam=_hsenc
+$removeparam=_hsmi
+$removeparam=__hssc
+$removeparam=__hstc
+$removeparam=__hsfp
+$removeparam=hsCtaTracking
+$removeparam=mkt_tok
+$removeparam=vero_id
+$removeparam=vero_conv
+$removeparam=oly_anon_id
+$removeparam=oly_enc_id
+$removeparam=_openstat
+$removeparam=wickedid
+$removeparam=irclid
+$removeparam=epik
+$removeparam=srsltid
+$removeparam=gad_source
+$removeparam=rb_clickid
+$removeparam=_ga
+$removeparam=_gl
+$removeparam=mtm_source
+$removeparam=mtm_medium
+$removeparam=mtm_campaign
+$removeparam=mtm_keyword
+$removeparam=mtm_content
+$removeparam=mtm_cid
+$removeparam=mtm_group
+$removeparam=mtm_placement
+$removeparam=pk_campaign
+$removeparam=pk_kwd
+$removeparam=pk_source
+$removeparam=pk_medium
+$removeparam=pk_content
+$removeparam=piwik_campaign
+$removeparam=piwik_kwd
+$removeparam=matomo_campaign
+$removeparam=matomo_keyword
+
+! Signed URLs: their signature covers the query string, so removing a
+! parameter breaks the link. These exceptions cancel parameter stripping
+! only, never blocking.
+@@*X-Amz-Signature=$removeparam
+@@*X-Amz-Credential=$removeparam
+@@*X-Goog-Signature=$removeparam
+@@*Key-Pair-Id=$removeparam
+@@*&sig=*&se=$removeparam
+@@*&se=*&sig=$removeparam

@@ -1,0 +1,31 @@
+{
+  "name": "sinkhole-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "sinkhole for Chromium and Firefox (MV3): thin glue over rulesets compiled by `sinkhole compile`.",
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:firefox": "node scripts/build.mjs --browser firefox",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check src test e2e scripts && cd ../testbed && biome check .",
+    "test": "tsc -p tsconfig.test.json && node --test build/test/",
+    "e2e": "node e2e/smoke.mjs",
+    "e2e:firefox": "node e2e/smoke.mjs --browser firefox",
+    "testbed": "node ../testbed/run.mjs",
+    "testbed:firefox": "node ../testbed/run.mjs --browser firefox",
+    "e2e:bridge": "node e2e/bridge.mjs",
+    "e2e:bridge:firefox": "node e2e/bridge.mjs --browser firefox"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@types/chrome": "0.3.6",
+    "@types/node": "20.19.43",
+    "playwright-core": "1.55.0",
+    "typescript": "7.0.2"
+  }
+}

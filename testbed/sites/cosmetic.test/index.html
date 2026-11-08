@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Cosmetic filtering</title>
+<!-- One element per kind of cosmetic rule in lists/testbed.txt. -->
+<style>
+  .card, .promo-box, .sponsored-widget { padding: 4px; border: 1px solid #ccc; margin: 4px; }
+  .blur { filter: blur(4px); }
+</style>
+<body>
+<div class="promo-box" id="specific">Specific hiding (cosmetic.test##.promo-box)</div>
+<div class="sponsored-widget" id="generic">Generic hiding (##.sponsored-widget)</div>
+<div class="sticky-bar" id="style" style="position: fixed; top: 0; right: 0">Style rule</div>
+<div class="card" id="has-text">Sponsored: buy now</div>
+<div class="card" id="plain-card">Local news</div>
+<div class="overlay" id="remove">Overlay (removed)</div>
+<div id="upward"><div><span class="ad-label">Ad</span></div></div>
+<div class="article blur" id="remove-class">Article text behind a blur (remove-class scriptlet)</div>
+<div class="bait-free" id="untouched">Nothing matches this</div>
+<script>
+  // Added after load: generic and procedural rules must still catch them.
+  addEventListener("load", () => setTimeout(() => {
+    const late = document.createElement("div");
+    late.className = "sponsored-widget";
+    late.id = "late-generic";
+    document.body.appendChild(late);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = "late-has-text";
+    card.textContent = "Sponsored: also this";
+    document.body.appendChild(card);
+  }, 200));
+</script>
+</body>

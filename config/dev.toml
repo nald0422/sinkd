@@ -1,0 +1,59 @@
+# A config for trying sinkhole without touching the system's DNS settings.
+# It listens on port 5300, so nothing on the machine uses it unless asked:
+#
+#   cargo run -p sinkhole-cli -- run --config config/dev.toml
+#   dig @127.0.0.1 -p 5300 ads.example.com      # blocked: 0.0.0.0
+#   dig @127.0.0.1 -p 5300 example.com          # forwarded to Quad9 over DoH
+#
+# Edits to this file and to dev-blocklist.txt apply while it runs.
+
+# Local entries. The allowlist beats every blocklist.
+allow = []
+block = ["ads.example.com", "*.tracking.example"]
+
+[listen]
+addrs = ["127.0.0.1:5300", "[::1]:5300"]
+
+[blocking]
+response = "null_address"
+ttl_secs = 10
+
+# Quad9 over DNS-over-HTTPS. The bootstrap addresses reach it without a DNS
+# lookup. More upstreams can follow as failovers.
+[[upstream]]
+protocol = "doh"
+url = "https://dns.quad9.net/dns-query"
+bootstrap = ["9.9.9.9", "149.112.112.112"]
+
+# DNS-over-TLS and plain UDP work too:
+#
+# [[upstream]]
+# protocol = "dot"
+# addr = "9.9.9.9:853"
+# server_name = "dns.quad9.net"
+#
+# [[upstream]]
+# protocol = "udp"
+# addr = "9.9.9.9:53"
+
+# Answers are cached for their TTL; expired ones stand in for up to a day
+# when no upstream answers.
+[cache]
+max_entries = 10000
+serve_stale_secs = 86400
+
+# Relative paths are resolved against this file's directory.
+[[list]]
+name = "dev"
+path = "dev-blocklist.txt"
+
+# Lists can also come from the web. They are cached in ~/Library/Caches/sinkhole
+# (macOS) or ~/.cache/sinkhole, and checked daily or as the list asks:
+#
+# [[list]]
+# name = "my-list"
+# url = "https://example.org/hosts.txt"
+#
+# [updates]
+# interval_hours = 24
+# cache_dir = "cache"      # relative to this file

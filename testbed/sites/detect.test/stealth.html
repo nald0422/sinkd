@@ -1,0 +1,101 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part C (4): extension artifacts</title>
+<!-- What a page can learn about an extension from inside: the source and
+     shape of patched functions, new globals, stack frames, DOM nodes and
+     style sheets, mutations, resource timing. The harness compares all of
+     it with the same page in a browser without the extension. -->
+<script>
+  window.results = { detections: [], errors: [] };
+  addEventListener("error", (e) => results.errors.push(String((e.error && e.error.stack) || e.message)));
+  const mutations = [];
+  new MutationObserver((records) => {
+    for (const r of records) {
+      for (const node of r.addedNodes) mutations.push(`+${node.nodeName}`);
+      if (r.type === "attributes") mutations.push(`@${r.target.nodeName}.${r.attributeName}`);
+    }
+  }).observe(document, { childList: true, subtree: true, attributes: true });
+  results.namesAtStart = Object.getOwnPropertyNames(window).sort();
+</script>
+<script src="http://www.googletagservices.com/tag/js/gpt.js"></script>
+<body>
+<p class="text">Some text.</p>
+<script>
+  const fns = {
+    setTimeout: [window, "setTimeout"],
+    setInterval: [window, "setInterval"],
+    fetch: [window, "fetch"],
+    open: [window, "open"],
+    "JSON.parse": [JSON, "parse"],
+    "Response.prototype.json": [Response.prototype, "json"],
+    "XMLHttpRequest.prototype.open": [XMLHttpRequest.prototype, "open"],
+    "XMLHttpRequest.prototype.send": [XMLHttpRequest.prototype, "send"],
+    "EventTarget.prototype.addEventListener": [EventTarget.prototype, "addEventListener"],
+    "Function.prototype.toString": [Function.prototype, "toString"],
+    // Patched by the fingerprint protection.
+    "HTMLCanvasElement.prototype.toDataURL": [HTMLCanvasElement.prototype, "toDataURL"],
+    "HTMLCanvasElement.prototype.toBlob": [HTMLCanvasElement.prototype, "toBlob"],
+    "HTMLCanvasElement.prototype.getContext": [HTMLCanvasElement.prototype, "getContext"],
+    "CanvasRenderingContext2D.prototype.getImageData": [CanvasRenderingContext2D.prototype, "getImageData"],
+    "OffscreenCanvas.prototype.convertToBlob": [OffscreenCanvas.prototype, "convertToBlob"],
+    "WebGLRenderingContext.prototype.readPixels": [WebGLRenderingContext.prototype, "readPixels"],
+    "WebGLRenderingContext.prototype.getParameter": [WebGLRenderingContext.prototype, "getParameter"],
+    "WebGL2RenderingContext.prototype.readPixels": [WebGL2RenderingContext.prototype, "readPixels"],
+    "AudioBuffer.prototype.getChannelData": [AudioBuffer.prototype, "getChannelData"],
+    "AudioBuffer.prototype.copyFromChannel": [AudioBuffer.prototype, "copyFromChannel"],
+    "AnalyserNode.prototype.getFloatFrequencyData": [AnalyserNode.prototype, "getFloatFrequencyData"],
+    "get Navigator.prototype.hardwareConcurrency": [Navigator.prototype, "hardwareConcurrency", "get"],
+  };
+  const functions = {};
+  for (const [name, [owner, prop, accessor]] of Object.entries(fns)) {
+    const d = Object.getOwnPropertyDescriptor(owner, prop);
+    const fn = accessor ? d[accessor] : owner[prop];
+    functions[name] = {
+      toString: Function.prototype.toString.call(fn),
+      string: String(fn),
+      toStringOfToString: fn.toString.toString(),
+      name: fn.name,
+      length: fn.length,
+      ownKeys: Reflect.ownKeys(fn).map(String).sort(),
+      hasPrototype: "prototype" in fn,
+      descriptor: d && {
+        writable: d.writable,
+        enumerable: d.enumerable,
+        configurable: d.configurable,
+        kind: "value" in d ? typeof d.value : "accessor",
+        hasSet: "set" in d ? typeof d.set : null,
+      },
+      sameAsGetter: d && "value" in d ? d.value === fn : null,
+    };
+  }
+  const stacks = {};
+  try { JSON.parse("{"); } catch (e) { stacks.jsonParseError = e.stack; }
+  try { null.x; } catch (e) { stacks.typeError = e.stack; }
+  try { new XMLHttpRequest().open(); } catch (e) { stacks.xhrOpenError = e.stack; }
+  try { Function.prototype.toString.call({}); } catch (e) { stacks.toStringError = e.stack; }
+  setTimeout(function timer() { stacks.inTimer = new Error("x").stack; }, 0);
+  addEventListener("message", function onMessage() { stacks.inListener = new Error("x").stack; });
+  postMessage("ping", "*");
+  fetch("http://ads.detect-cdn.test/ads.js?probe=stealth", { mode: "no-cors" })
+    .then(() => { stacks.afterFetch = new Error("x").stack; }, () => {});
+  // A reviver runs inside JSON.parse, so inside the json-prune wrapper.
+  // That frame cannot be hidden without eval (see DESIGN.md); recorded
+  // so the harness can report it, not to fail on it.
+  JSON.parse("[1]", function reviver(k, v) { stacks.inReviver ??= new Error("x").stack; return v; });
+
+  addEventListener("load", () => setTimeout(() => {
+    results.functions = functions;
+    results.stacks = stacks;
+    results.names = Object.getOwnPropertyNames(window).sort();
+    results.dom = [...document.querySelectorAll("*")].map(
+      (e) => `${e.nodeName}[${[...e.attributes].map((a) => `${a.name}=${a.value}`).join(",")}]`,
+    );
+    results.styleSheets = document.styleSheets.length;
+    results.adoptedStyleSheets = document.adoptedStyleSheets.length;
+    results.scripts = document.scripts.length;
+    results.mutations = mutations;
+    results.resources = performance.getEntriesByType("resource").map((e) => e.name);
+    results.done = true;
+  }, 300));
+</script>
+</body>

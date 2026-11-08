@@ -1,0 +1,7 @@
+{
+  "$schema": "../extension/node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["../extension/biome.json"],
+  "files": {
+    "includes": ["*.mjs"]
+  }
+}

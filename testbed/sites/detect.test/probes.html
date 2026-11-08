@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Part C (3): request probes</title>
+<!-- fetch, XHR and image requests to an ad URL; a network error means a
+     blocker. The last probe takes a pristine fetch from a fresh iframe,
+     to get around patches in the page's own window. -->
+<script>
+  window.results = { detections: [], errors: [] };
+  function detect(why) { results.detections.push(why); }
+  addEventListener("error", (e) => results.errors.push(String((e.error && e.error.stack) || e.message)));
+</script>
+<body>
+<script>
+  const probe = "http://ads.detect-cdn.test/ads.js";
+  const pending = [];
+  pending.push(fetch(`${probe}?probe=fetch`, { mode: "no-cors" }).catch(() => detect("fetch probe failed")));
+  pending.push(new Promise((done) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", `${probe}?probe=xhr`);
+    xhr.onerror = () => { detect("XHR probe failed"); done(); };
+    xhr.onload = () => { if (xhr.status !== 200) detect(`XHR probe status ${xhr.status}`); done(); };
+    xhr.send();
+  }));
+  pending.push(new Promise((done) => {
+    const img = new Image();
+    img.onload = done;
+    img.onerror = () => { detect("image probe failed"); done(); };
+    img.src = "http://ads.detect-cdn.test/banner.gif?probe=img";
+  }));
+  const frame = document.createElement("iframe");
+  frame.style.display = "none";
+  document.body.appendChild(frame);
+  pending.push(
+    frame.contentWindow.fetch(`${probe}?probe=iframe`, { mode: "no-cors" })
+      .catch(() => detect("fetch probe from a fresh iframe failed")),
+  );
+  Promise.all(pending).then(() => { results.done = true; });
+</script>
+</body>

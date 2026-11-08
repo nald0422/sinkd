@@ -1,0 +1,181 @@
+! Hand-written corpus for differential testing against Brave's adblock crate.
+! One rule per line; `!` lines are comments. Written for this project (not
+! copied from any filter list) so it carries no list license.
+
+! --- network: anchors and patterns
+||ads.example.com^
+||ads.example.com^|
+||ads.example.com
+||Ads.Example.COM^
+||bücher.example^
+@@||ads.example.com^
+||example.com/ads/banner.js
+||example.com/ads/*.gif$image
+||example.com^*/track?
+|https://example.com/ad
+|http://
+swf|
+.com/ads/$script
+/banner/*/img^
+-ad-banner.
+&ad_type=
+/^https?:\/\/ad[0-9]+\./
+/^https?:\/\/ad[0-9]+\./$image,3p
+/ads\.js$/
+/ads\.js$/$script
+*
+||
+|
+ads banner
+||example.com^$
+||example.com^$script,
+
+! --- network: types and party
+||example.com^$script,third-party
+||example.com^$script,3p
+||example.com^$~third-party
+||example.com^$1p
+||example.com^$first-party,image
+||example.com^$xhr,frame,css
+||example.com^$xmlhttprequest,subdocument,stylesheet
+||example.com^$~script,~image
+||example.com^$object,media,font,websocket,ping,other
+||example.com^$beacon
+||example.com^$object-subrequest
+||example.com^$webrtc
+||example.com^$document
+@@||example.com^$document
+@@||example.com^$doc
+||example.com^$popup
+||example.com^$all
+||example.com^$third-party,first-party
+||example.com^$strict1p
+||example.com^$strict3p
+
+! --- network: domains and conditions
+||example.com^$domain=a.example|~b.a.example
+||example.com^$from=a.example
+||example.com^$to=b.example
+||example.com^$domain=example.*
+*$script,domain=a.example
+$script,domain=a.example,third-party
+||example.com^$domain=
+||example.com^$denyallow=x.example,domain=a.example
+||example.com^$method=post
+||example.com^$method=get|head
+||example.com^$header=via:1.1
+||example.com^$match-case
+||example.com/Ads$match-case
+
+! --- network: flags
+||example.com^$important
+@@||example.com^$important
+||example.com^$badfilter
+||example.com^$~important
+||example.com^$~badfilter
+||example.com^$~match-case
+||example.com^$tag=foo
+
+! --- network: actions
+||example.com^$redirect=noop.js
+||example.com/a.js$script,redirect=noop.js
+||example.com/a.js$script,redirect-rule=noop.js
+||example.com/a.js$script,redirect=noop.js:5
+||example.com/a.mp4$media,redirect=noopmp4-1s
+@@||example.com^$redirect
+||example.com^$~redirect=noop.js
+||example.com^$empty
+||example.com^$mp4
+||example.com^$rewrite=abp-resource:blank-js
+||example.com^$removeparam=utm_source
+$removeparam=fbclid
+$removeparam=/^utm_/
+||example.com^$removeparam
+||example.com^$removeparam=~id
+@@||example.com^$removeparam
+||example.com^$queryprune=x
+||example.com^$csp=script-src 'self'
+@@||example.com^$csp
+@@||example.com^$csp=script-src 'self'
+||example.com^$inline-script
+||example.com^$inline-font
+||example.com^$permissions=browsing-topics=()
+||example.com^$urlskip=?u
+||example.com^$cookie
+||example.com^$removeheader=location
+
+! --- network: page exceptions
+@@||example.com^$generichide
+@@||example.com^$ghide
+@@||example.com^$elemhide
+@@||example.com^$specifichide
+@@||example.com^$genericblock
+||example.com^$generichide
+||example.com^$genericblock
+||example.com^$cname
+@@||example.com^$cname
+
+! --- network: options nobody here implements
+||example.com^$replace=/a/b/
+||example.com^$hls=x
+||example.com^$dnstype=AAAA
+||example.com^$popunder
+||example.com^$frobnicate
+
+! --- cosmetic
+##.ad
+###ad
+##div[class^="ad-"]
+example.com##.ad
+example.com,~www.example.com##.ad
+~www.example.com##.ad
+example.*##.ad
+*##.ad
+example.com#@#.ad
+#@#.ad
+example.com##div:has(> .ad)
+example.com##div:has-text(Sponsored)
+example.com##div:has-text(/Sponsored|Promoted/i):upward(2)
+example.com#?#div:-abp-has(span:-abp-contains(Ad))
+example.com#?#div:-abp-properties(width: 300px)
+example.com##div:matches-css(position: fixed)
+example.com##div:min-text-length(20)
+example.com##div:xpath(//span)
+example.com##div:remove()
+example.com##body:style(overflow: auto !important)
+example.com##a:remove-attr(onclick)
+example.com##body:remove-class(noscroll)
+example.com##.a:style(background: url(https://t.example/x))
+example.com#$#.ad { display: none !important; }
+example.com#@$#.ad { display: none !important; }
+example.com#$?#div:has-text(ad) { remove: true; }
+example.com##^script:has-text(ad)
+example.com##^responseheader(refresh)
+example.com$$script[tag-content="ad"]
+example.com#%#window.ads = false;
+[$path=/page]example.com##.ad
+example.com##
+##.a{} body{x:y
+
+! --- scriptlets
+example.com##+js(set, ads.enabled, false)
+example.com##+js(set-constant.js, ads.enabled, false)
+example.com##+js(aopr, adsbygoogle)
+example.com##+js(aopw, ads)
+example.com##+js(acs, document.write, ad)
+example.com##+js(nostif, ad, 3000)
+example.com##+js(no-fetch-if, ads.js)
+example.com##+js(json-prune, ads)
+example.com##+js(rc, ad, body)
+example.com##+js(nowoif)
+example.com##+js(set, x, 'a, b')
+example.com##+js(acs, x, /a\,b/)
+example.com#@#+js(set, ads.enabled, false)
+example.com#@#+js()
+##+js(set, ads.enabled, false)
+example.com##+js(evil-eval, x)
+example.com##+js(set, x)
+example.com#%#//scriptlet('set-constant', 'ads.enabled', 'false')
+example.com#@%#//scriptlet('set-constant', 'ads.enabled', 'false')
+example.com#$#abort-on-property-read ads; json-prune ad
+example.com#$#hide-if-contains ad

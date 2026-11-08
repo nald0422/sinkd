@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>A third-party fingerprinting frame</title>
+<!-- Embedded by fp.test and fp-b.test. Keyed by its own site, its canvas
+     hash would link them; the noise is keyed by the page it is in. -->
+<script>
+  addEventListener("load", () => setTimeout(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 40;
+    const ctx = canvas.getContext("2d");
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#069";
+    ctx.fillText("third-party fingerprint", 2, 20);
+    let h = 0x811c9dc5;
+    const url = canvas.toDataURL();
+    for (let i = 0; i < url.length; i++) {
+      h ^= url.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    parent.postMessage({ frameCanvas: h.toString(16) }, "*");
+  }, 150));
+</script>

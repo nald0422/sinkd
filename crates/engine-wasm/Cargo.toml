@@ -1,0 +1,24 @@
+[package]
+name = "sinkhole-engine-wasm"
+description = "The page index lookup, built for wasm32 and called from the extension's service worker."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+bench = false
+
+[dependencies]
+sinkhole-core = { workspace = true, features = ["page"] }
+
+[lints.rust]
+# Exports need `#[unsafe(no_mangle)]`; see lib.rs. Nothing else is unsafe.
+unsafe_code = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "warn"
