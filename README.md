@@ -416,7 +416,8 @@ For the stores, `npm run package` makes release builds (without the test
 permission `--dev` adds) from the cached lists. It zips them into
 `release/`, with the source bundle Mozilla asks for; the bundle rebuilds
 the packages file for file (see `extension/BUILDING.md`).
-`node scripts/store-images.mjs` makes the screenshot and promo tile, and
+`node scripts/store-images.mjs` makes the five store screenshots and the
+promo tile, and
 `node scripts/logo.mjs` the logo, the icons and the brand kit in
 `docs/brand/`. The
 listing text and the privacy policy are in `docs/store-listing.md` and
