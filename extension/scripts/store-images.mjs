@@ -6,6 +6,8 @@
 //   screenshot-4-privacy.png       links, cookies, referrer, fingerprints
 //   screenshot-5-every-app.png     the sinkd command, for every app
 //   promo-440x280.png              the small promo tile
+//   og-1200x630.png                the link preview image, for the website
+//   page-before.png, page-after.png  the before/after captures, for the website
 //
 //   node scripts/store-images.mjs [--extension dist]
 //
@@ -17,7 +19,7 @@
 // the extension and once with the build in --extension. The popup's tab
 // lookup is stubbed to report that site.
 
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -233,6 +235,8 @@ try {
   };
   const before = await shootPage(await plain.newContext({ deviceScaleFactor: 2 }));
   const after = await shootPage(withExtension);
+  writeFileSync(join(release, "page-before.png"), before);
+  writeFileSync(join(release, "page-after.png"), after);
 
   const page = await withExtension.newPage();
   const render = async (
@@ -369,7 +373,15 @@ try {
     "promo-440x280.png",
     { bg: BASALT, ink: SAND, width: 440, height: 280 },
   );
-  console.log(`wrote 5 screenshots and the promo tile to ${release}`);
+  await render(
+    `<div style="display:flex;flex-direction:column;justify-content:center;height:100%;padding:0 96px">
+      <h1 style="font-size:84px;display:flex;align-items:center;gap:28px">${logo("stone", 104)}sinkd</h1>
+      <p class="muted" style="font-size:34px;margin:26px 0 0">Ad and tracker blocking that <span class="accent">blends in</span>.</p>
+    </div>`,
+    "og-1200x630.png",
+    { width: 1200, height: 630 },
+  );
+  console.log(`wrote the store images and the website's images to ${release}`);
 } finally {
   await withExtension.close();
   await plain.close();

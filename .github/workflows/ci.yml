@@ -73,6 +73,22 @@ jobs:
       - run: npm run e2e:bridge
       - run: npm run e2e:bridge:firefox
 
+  site:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
   fuzz:
     # Every target for 30 s on stable: catches a crash a change brings in.
     # Longer runs are for `fuzz/run.sh <target> <seconds>` by hand.

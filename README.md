@@ -94,6 +94,7 @@ testbed/         local pages that detect blockers and track, and the harness tha
 fuzz/            fuzz targets for the parsers, the DNS handling and the config
 config/          a trial config (port 5300) and a tiny blocklist
 docs/            the manual breakage checklist, privacy policy, store listing and brand kit
+site/            the landing page (React, TypeScript, Tailwind)
 DESIGN.md        decisions and measurements
 ```
 
@@ -422,6 +423,20 @@ promo tile, and
 `docs/brand/`. The
 listing text and the privacy policy are in `docs/store-listing.md` and
 `docs/privacy.md`.
+
+## The website
+
+`site/` is the landing page: React, TypeScript and Tailwind, built with
+Vite. On a wide screen it scrolls sideways, one idea per panel; on a phone,
+or with reduced motion asked for, it is an ordinary page. From `site/`:
+
+```bash
+npm ci && npm run dev
+```
+
+`npm run build` writes a static site to `site/dist/`, with relative paths,
+so it can be served from a domain's root or a path such as GitHub Pages'
+`/sinkd/`. Its before/after images come from `extension/scripts/store-images.mjs`.
 
 ## Recovery
 

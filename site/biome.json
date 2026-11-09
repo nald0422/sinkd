@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["../extension/biome.json"],
+  "files": {
+    "includes": ["src/**", "*.ts", "!dist"]
+  },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  }
+}

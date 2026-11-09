@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* The brand palette (extension/scripts/logo.mjs). */
+@theme {
+  --color-paper: #ece7dd;
+  --color-paper-deep: #e4ded1;
+  --color-ink: #2c302c;
+  --color-ink-soft: #3a3f39;
+  --color-sand: #d9cdb4;
+  --color-clay: #b87a5e;
+  --color-muted: #5b5f57;
+  --color-muted-dark: #a9a08c;
+  --font-sans:
+    -apple-system, "SF Pro Display", "Inter", "Helvetica Neue", ui-sans-serif, sans-serif;
+  --font-mono: "SF Mono", Menlo, ui-monospace, monospace;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-sand);
+}
