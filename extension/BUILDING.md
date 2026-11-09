@@ -12,18 +12,22 @@ extension loads no remote code.
 |---|---|---|
 | `background.js`, `content.js`, `popup.js`, `core.js`, `engine.js`, `farble.js`, `gpc.js` | `tsc` (TypeScript compiler; no bundler, no minifier, comments removed) | `extension/src/*.ts` |
 | `engine.wasm` | `cargo build -p sinkd-engine-wasm --target wasm32-unknown-unknown --profile wasm` | `crates/engine-wasm`, `crates/core` (Rust) |
-| `rulesets/`, `page/index.bin`, `rulesets.json`, `trackers.json`, `uncloak.json`, `suffixes.json`, `NOTICES.txt` | `sinkd compile` (`crates/cli`, `crates/compiler`) | the filter lists in `extension/build/list-cache/` and `extension/lists/` |
+| `rulesets/`, `page/index.bin`, `rulesets.json`, `trackers.json`, `uncloak.json`, `suffixes.json` | `sinkd compile` (`crates/cli`, `crates/compiler`) | the filter lists in `extension/build/list-cache/` and `extension/lists/` |
 | `scriptlets/*.js`, `scriptlets.json` | `sinkd compile` | the hand-written scriptlet library (`crates/compiler/scriptlets/`), with the calls the lists select |
 | `war/*` (stand-ins for blocked ad and analytics scripts) | copied by `sinkd compile` | `crates/compiler/resources/` (hand-written) |
 | `manifest.json` | `scripts/build.mjs` | `static/manifest.json`, with the version from `package.json` and the rulesets |
 | `popup.html`, `popup.css`, `icons/` | copied | `static/` |
+| `NOTICES.txt` | `scripts/build.mjs` | the lists' attribution from `sinkd compile`, with which files are under which license |
+| `THIRD-PARTY-NOTICES.txt` | `scripts/build.mjs` | the license files of the crates compiled into `engine.wasm`, found by `cargo tree` and `cargo metadata` |
+| `licenses/` | copied | `LICENSE-MIT`, `LICENSE-APACHE` and `extension/licenses/GPL-3.0.txt` |
 
 Filter lists can only select bundled scriptlets and pass them arguments;
 they never supply code.
 
 The lists in `extension/build/list-cache/` are the copies the packages were
-compiled from (EasyList, EasyPrivacy and uBlock Origin's lists; their
-licenses are in `NOTICES.txt`). The bundle includes them so the output is
+compiled from (EasyList, EasyPrivacy and uBlock Origin's lists). The
+compiled rules ship under the GPL, version 3; `NOTICES.txt` says which
+files, and that this bundle is their source. The bundle includes them so the output is
 identical; the build does not download them (`--offline`).
 
 ## Tools

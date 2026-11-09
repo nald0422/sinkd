@@ -63,9 +63,14 @@ used for creditworthiness or lending.
 ## addons.mozilla.org
 
 - **Add-on ID:** `sinkd@nald0422.github.io` (in the manifest).
-- **License:** MIT OR Apache-2.0 for sinkd's own code. The compiled rules
-  carry the lists' licenses (GPL-3.0, CC BY-SA 3.0), listed in
-  `NOTICES.txt`.
+- **License:** the package holds two licenses, so pick **Custom** and
+  paste:
+
+  > sinkd's own code is licensed MIT OR Apache-2.0. The blocking rules are
+  > compiled from EasyList, EasyPrivacy and uBlock Origin's filter lists
+  > and are distributed under the GNU GPL, version 3. NOTICES.txt in the
+  > package says which files are which; the full texts are in licenses/.
+  > Source: https://github.com/nald0422/sinkd
 - **Source code:** upload `sinkd-source-<version>.zip`. The package
   contains generated files (compiled TypeScript, WebAssembly, rules).
 

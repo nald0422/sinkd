@@ -13,6 +13,8 @@
 //    for Firefox), and the manifest's rule_resources are filled in from
 //    the compiled rulesets. Firefox gets the same code with its own
 //    manifest (see firefoxManifest) and the host lists for uncloaking.
+// 5. NOTICES.txt, THIRD-PARTY-NOTICES.txt and licenses/ say which files
+//    are under which license, and where the rules' source is (see notices).
 //
 // --dev adds the declarativeNetRequestFeedback permission, which the
 // end-to-end test needs for testMatchOutcome. Release builds omit it.
@@ -39,6 +41,152 @@ const repo = resolve(root, "..");
 export const FIREFOX_ID = "sinkd@nald0422.github.io";
 /** The longest manifest description the Chrome Web Store accepts. */
 const MAX_DESCRIPTION = 132;
+/** Where the source of each release is published (see notices). */
+const REPOSITORY = "https://github.com/nald0422/sinkd";
+const WASM_TARGET = "wasm32-unknown-unknown";
+
+/** The license texts a package carries, in licenses/. */
+const LICENSE_FILES = {
+  "LICENSE-MIT": join(repo, "LICENSE-MIT"),
+  "LICENSE-APACHE": join(repo, "LICENSE-APACHE"),
+  "GPL-3.0.txt": join(root, "licenses", "GPL-3.0.txt"),
+};
+/** The list licenses notices() is written for; any other stops the build. */
+const LIST_LICENSES = new Set([
+  "GPL-3.0-only",
+  "GPL-3.0-or-later OR CC-BY-SA-3.0",
+  "MIT OR Apache-2.0",
+]);
+
+/**
+ * NOTICES.txt: which files are sinkd's own and which are compiled from the
+ * lists, under which license, and where their source is. `lists` is the
+ * compiler's attribution, one entry per list, appended as it is.
+ *
+ * The compiled rules are a translation of the lists, so they ship under the
+ * lists' license: GPL-3.0, since the uBlock Origin lists are GPL-3.0-only
+ * and EasyList offers GPL-3.0 among others. sinkd's code only loads them,
+ * as data files beside it, so it keeps its own license.
+ */
+export function notices({ version, browser, lists }) {
+  const licenses = [...lists.matchAll(/^ {2}license: +(.+)$/gm)].map((m) => m[1]);
+  const other = licenses.filter((l) => !LIST_LICENSES.has(l));
+  if (licenses.length === 0 || other.length > 0) {
+    throw new Error(
+      `NOTICES.txt does not cover the list license ${other.join(", ") || "(none found)"}; update notices() in scripts/build.mjs`,
+    );
+  }
+  const compiled = [
+    ["rulesets/", "the network rules"],
+    ["page/index.bin", "the element-hiding rules"],
+    ["scriptlets/", "sinkd's scriptlet library, each file joined with a table"],
+    ["", "compiled from the lists, so under the GPL as a whole"],
+    ["scriptlets.json", "where each scriptlet file runs"],
+    ["trackers.json", "tracker hosts, for the cookie and Referer rules"],
+    ...(browser === "firefox"
+      ? [["uncloak.json", "each ruleset's hosts, for CNAME uncloaking"]]
+      : []),
+  ];
+  const rows = compiled.map(([file, what]) => `  ${file.padEnd(16)} ${what}`).join("\n");
+  return `sinkd ${version}
+
+sinkd's own code is licensed MIT OR Apache-2.0, at your option
+(licenses/LICENSE-MIT, licenses/LICENSE-APACHE): the scripts, the popup,
+the page engine (engine.wasm), the surrogates in war/ and the scriptlet
+library.
+
+The blocking rules are not sinkd's own work. They are compiled from the
+filter lists named below, and the files that hold them are distributed
+under the GNU General Public License, version 3 (licenses/GPL-3.0.txt),
+the license of the uBlock Origin lists. EasyList and EasyPrivacy are used
+under their GPL option.
+
+${rows}
+
+Their source, the lists exactly as compiled and the compiler, is
+sinkd-source-${version}.zip at
+${REPOSITORY}/releases/tag/v${version}
+Its extension/BUILDING.md rebuilds this package byte for byte.
+
+The libraries compiled into engine.wasm, with their licenses, are in
+THIRD-PARTY-NOTICES.txt.
+
+${"-".repeat(72)}
+
+${lists}`;
+}
+
+/**
+ * THIRD-PARTY-NOTICES.txt: the crates compiled into engine.wasm, each with
+ * its MIT license text, which has to travel with the code. Every one offers
+ * MIT (some among others), and any that doesn't stops the build. Proc
+ * macros run at build time and put nothing in the wasm, so cargo tree
+ * leaves them out.
+ */
+function thirdPartyNotices() {
+  // `cargo metadata` prints a few MB, more than execFileSync's 1 MB default.
+  const cargo = (...args) =>
+    execFileSync("cargo", args, { cwd: repo, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+  const tree = cargo(
+    "tree",
+    "--locked",
+    "-p",
+    "sinkd-engine-wasm",
+    "--target",
+    WASM_TARGET,
+    "-e",
+    "normal,no-proc-macro",
+    "--prefix",
+    "none",
+    "--format",
+    "{p}",
+  );
+  // "name v1.2.3"; the workspace's own crates carry their path.
+  const wanted = new Set(
+    tree
+      .split("\n")
+      .map((line) => line.replace(/ \(\*\)$/, "").trim())
+      .filter((line) => line && !line.includes(" ("))
+      .map((line) => line.replace(" v", "@")),
+  );
+  const { packages } = JSON.parse(
+    cargo("metadata", "--locked", "--format-version", "1", "--filter-platform", WASM_TARGET),
+  );
+  const crates = packages
+    .filter((p) => wanted.has(`${p.name}@${p.version}`))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+  if (crates.length !== wanted.size) {
+    throw new Error(`cargo metadata is missing some of ${[...wanted].join(", ")}`);
+  }
+  const sections = crates.map((p) => {
+    if (!/\bMIT\b/.test(p.license ?? "")) {
+      throw new Error(
+        `${p.name} ${p.version} is not offered under MIT (${p.license}); THIRD-PARTY-NOTICES.txt needs its license`,
+      );
+    }
+    const dir = dirname(p.manifest_path);
+    const file = readdirSync(dir)
+      .sort()
+      .find(
+        (name) =>
+          /^LICENSE[-_.]?MIT/i.test(name) ||
+          (/^(LICENSE|COPYING)/i.test(name) &&
+            readFileSync(join(dir, name), "utf8").includes("Permission is hereby granted")),
+      );
+    if (!file) throw new Error(`no MIT license file for ${p.name} ${p.version} in ${dir}`);
+    const head = [`${p.name} ${p.version}`, `  license: ${p.license}, used under MIT`];
+    if (p.authors?.length) head.push(`  authors: ${p.authors.join(", ")}`);
+    if (p.repository) head.push(`  ${p.repository}`);
+    return `${head.join("\n")}\n\n${readFileSync(join(dir, file), "utf8").trim()}\n`;
+  });
+  return (
+    "The page engine (engine.wasm) is sinkd's own code, MIT OR Apache-2.0,\n" +
+    "compiled together with the libraries below. Each offers the MIT license\n" +
+    "and is used under it here.\n\n" +
+    `${"-".repeat(72)}\n\n` +
+    sections.join(`\n${"-".repeat(72)}\n\n`)
+  );
+}
 
 /**
  * The Chrome manifest, made Firefox's: an event page instead of a service
@@ -117,13 +265,12 @@ export function build(options = {}) {
   const stdio = options.quiet ? "ignore" : "inherit";
   execFileSync("cargo", compileArgs, { cwd: repo, stdio });
 
-  const wasmTarget = "wasm32-unknown-unknown";
   execFileSync(
     "cargo",
-    ["build", "--quiet", "-p", "sinkd-engine-wasm", "--target", wasmTarget, "--profile", "wasm"],
+    ["build", "--quiet", "-p", "sinkd-engine-wasm", "--target", WASM_TARGET, "--profile", "wasm"],
     { cwd: repo, stdio },
   );
-  const wasm = join(repo, "target", wasmTarget, "wasm", "sinkd_engine_wasm.wasm");
+  const wasm = join(repo, "target", WASM_TARGET, "wasm", "sinkd_engine_wasm.wasm");
 
   const tsc = join(root, "node_modules", ".bin", "tsc");
   execFileSync(tsc, ["-p", join(root, "tsconfig.json")], { cwd: root, stdio: "inherit" });
@@ -154,16 +301,23 @@ export function build(options = {}) {
     "scriptlets.json",
     "trackers.json",
     "suffixes.json",
-    "NOTICES.txt",
     ...(browser === "firefox" ? ["uncloak.json"] : []),
   ]) {
     cpSync(join(compiled, file), join(out, file), { recursive: true });
   }
 
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  const lists = readFileSync(join(compiled, "NOTICES.txt"), "utf8");
+  writeFileSync(join(out, "NOTICES.txt"), notices({ version: pkg.version, browser, lists }));
+  writeFileSync(join(out, "THIRD-PARTY-NOTICES.txt"), thirdPartyNotices());
+  mkdirSync(join(out, "licenses"));
+  for (const [name, path] of Object.entries(LICENSE_FILES)) {
+    cpSync(path, join(out, "licenses", name));
+  }
+
   const adjusted = browser === "firefox" ? firefoxRulesets(join(out, "rulesets")) : 0;
 
   const index = JSON.parse(readFileSync(join(compiled, "rulesets.json"), "utf8"));
-  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   let manifest = JSON.parse(readFileSync(join(root, "static", "manifest.json"), "utf8"));
   if (browser === "firefox") {
     manifest = firefoxManifest(manifest);

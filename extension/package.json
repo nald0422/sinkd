@@ -1,6 +1,6 @@
 {
   "name": "sinkd-extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "sinkd for Chromium and Firefox (MV3): thin glue over rulesets compiled by `sinkd compile`.",
   "license": "MIT OR Apache-2.0",

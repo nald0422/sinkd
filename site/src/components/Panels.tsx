@@ -535,7 +535,10 @@ export function Open() {
         </nav>
       </div>
       <footer className="absolute inset-x-0 bottom-4 text-center text-xs text-muted-dark md:bottom-8">
-        sinkd · {new Date().getFullYear()}
+        sinkd · {new Date().getFullYear()} ·{" "}
+        <a href="./licenses.md" className="underline-offset-2 hover:underline">
+          Licenses
+        </a>
       </footer>
     </Panel>
   );

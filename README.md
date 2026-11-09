@@ -410,13 +410,20 @@ npm run testbed:firefox -- --real --bench
 The second form also checks the build in `dist/` and measures the
 performance budgets; the third does both in Firefox, on `dist-firefox/`.
 
-The rulesets compile from GPL and CC BY-SA lists. `NOTICES.txt` in each
-build names them and their licenses.
+The rules compile from GPL-3.0 lists, so the files that hold them ship
+under GPL-3.0, beside sinkd's own MIT OR Apache-2.0 code. Each build's
+`NOTICES.txt` says which files are which and where their source is,
+`THIRD-PARTY-NOTICES.txt` covers the crates in `engine.wasm`, and
+`licenses/` has the texts.
 
 For the stores, `npm run package` makes release builds (without the test
 permission `--dev` adds) from the cached lists. It zips them into
 `release/`, with the source bundle Mozilla asks for; the bundle rebuilds
-the packages file for file (see `extension/BUILDING.md`).
+the packages file for file (see `extension/BUILDING.md`). Each release's
+`NOTICES.txt` names the source bundle at
+`https://github.com/nald0422/sinkd/releases/tag/v<version>`, so attach
+`sinkd-source-<version>.zip` to a GitHub release of that tag when the
+packages go to the stores.
 `node scripts/store-images.mjs` makes the five store screenshots and the
 promo tile, and
 `node scripts/logo.mjs` the logo, the icons and the brand kit in
@@ -481,3 +488,7 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 Scriptlets and surrogates are original implementations. No code is taken from
 uBlock Origin, AdGuard or Brave, whose resources are GPLv3. Brave's `adblock`
 crate (MPL-2.0) is used only as a test oracle and is never shipped.
+
+The extension's compiled rules are not sinkd's own: they are translated from
+EasyList, EasyPrivacy and uBlock Origin's lists and are distributed under the
+GNU GPL, version 3 (see `NOTICES.txt` in a build).

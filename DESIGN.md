@@ -76,6 +76,20 @@ Chosen 2026-11-05. Consequences:
   names, and our implementations follow the same argument semantics.
 - The test corpus is hand-written, never copied from a list (EasyList is
   GPLv3 / CC BY-SA).
+- The rules the extension ships are a translation of the lists, so they
+  are distributed under the lists' license (decided 2026-11-09, version
+  0.1.1): GPL-3.0, since uBlock Origin's lists are GPL-3.0-only and
+  EasyList offers GPL-3.0 (its CC BY-SA 3.0 option cannot be combined with
+  the GPL). They are separate data files that sinkd's code loads, so the
+  code keeps MIT OR Apache-2.0. Each scriptlet file joins the library with
+  a table compiled from the lists, so it is GPL-3.0 as a whole; it carries
+  no header, because it runs in the page and names nothing (see *Page
+  target*). `scripts/build.mjs` writes `NOTICES.txt` (which files, which
+  license, where the source is), `THIRD-PARTY-NOTICES.txt` (the MIT
+  notices of the crates in `engine.wasm`) and `licenses/` into every
+  package, and stops if a list or a crate has a license it does not cover.
+  The source is the source bundle, attached to the GitHub release of each
+  version.
 
 ## Domain normalization (`core::domain`)
 
@@ -1856,8 +1870,6 @@ CI runs every target for 30 s on each push.
     them).
   - No `google-ima.js` surrogate yet (207 rules wait on it).
   - The per-site switch is all-or-nothing.
-  - The rulesets bundle GPL / CC BY-SA lists. `NOTICES.txt` records them,
-    but distribution needs a decision.
 - **Resolver, M4:**
   - Encrypted DNS hides queries from the network, not from the upstream.
     Quad9 (or whoever is configured) still sees every name that is neither

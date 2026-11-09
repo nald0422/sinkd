@@ -7,4 +7,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss()],
+  // The licenses of the libraries bundled in (React's MIT notice has to
+  // travel with it), linked from the page's footer.
+  build: { license: { fileName: "licenses.md" } },
 });
