@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Tall enough for one panel per screen; shorter screens stack the panels.
+   Keep in step with QUERY in useHorizontalScroll.ts. */
+@custom-variant stage (@media (min-height: 480px));
+/* Wide but not tall, like a laptop: panels tighten so each fits one screen. */
+@custom-variant short (@media (min-width: 768px) and (max-height: 820px));
+/* A small phone: the same, harder. */
+@custom-variant tiny (@media (max-width: 767px) and (max-height: 640px));
+
 /* The brand palette (extension/scripts/logo.mjs). */
 @theme {
   --color-paper: #ece7dd;
@@ -13,6 +21,25 @@
   --font-sans:
     -apple-system, "SF Pro Display", "Inter", "Helvetica Neue", ui-sans-serif, sans-serif;
   --font-mono: "SF Mono", Menlo, ui-monospace, monospace;
+  --animate-nudge: nudge 1.8s ease-in-out infinite;
+  --animate-fade: fade 0.5s ease-out;
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+      transform: translateY(-3px);
+    }
+  }
+
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(5px);
+    }
+  }
 }
 
 html {
