@@ -27,6 +27,7 @@ Text to paste into the Chrome Web Store and addons.mozilla.org (AMO).
 > • Keeps WebRTC from revealing your local IP address.
 > • Adds slight, consistent noise to canvas, WebGL and audio readback, so fingerprints can't link your visits across sites or browser sessions. It never changes your user agent: blending in beats standing out.
 > • In Firefox, also blocks trackers hidden behind a site's own subdomain (CNAME uncloaking).
+> • In Chrome, a live log in the popup shows what sinkd does on the page as it happens: what it blocks, replaces and cleans, and which headers it changes. It adds up to the count on the toolbar icon.
 >
 > Every protection can be switched off on its own, everywhere or for one site.
 >
@@ -52,6 +53,8 @@ Text to paste into the Chrome Web Store and addons.mozilla.org (AMO).
 | `cookies` | Shortens the lifetime of known analytics cookies (`_ga`, `_fbp`…). |
 | `privacy` | Sets WebRTC to use only the public network interface, so pages can't learn the local IP address. |
 | `storage` | Keeps the user's settings on the device. |
+| `activeTab` | Lets the popup's log read which of sinkd's rules acted in the tab it was opened on (declarativeNetRequest.getMatchedRules), so the log adds up to the toolbar count. Chrome grants it only when the user opens the popup, for that tab alone. Nothing is stored or sent. |
+| `webRequest` | Keeps the popup's log live: while the popup is open, it observes the requests of the tab it was opened on, to show each block, stand-in, cleaned link and header change as it happens. It only observes (no blocking), stops when the popup closes, and stores and sends nothing. The background script doesn't use it in Chrome. |
 | `nativeMessaging` (optional, off until the user allows it) | Receives the allowlist, blocklist and pause state from the sinkd program on the user's own computer. The extension sends it nothing but a request for that state. |
 
 **Remote code:** No. All JavaScript and WebAssembly is in the package.

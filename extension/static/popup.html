@@ -6,36 +6,68 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header>
-    <h1>sinkd</h1>
-    <p id="site" class="muted"></p>
+  <header class="top">
+    <div class="brand">
+      <img src="icons/icon32.png" alt="" width="28" height="28">
+      <div>
+        <h1>sinkd</h1>
+        <p id="site" class="muted"></p>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="sinkd">
+      <button type="button" role="tab" id="tab-controls" aria-controls="view-controls" aria-selected="true">Protection</button>
+      <button type="button" role="tab" id="tab-log" aria-controls="view-log" aria-selected="false" tabindex="-1">Log <span id="log-count" class="pill" hidden></span></button>
+    </div>
   </header>
-  <section id="access" class="access" hidden>
-    <p>sinkd can't act on pages: its access to sites was turned off.</p>
-    <button type="button" id="grant">Allow on all sites</button>
-  </section>
-  <section class="site">
-    <label class="switch">
-      <input type="checkbox" id="site-toggle">
-      <span id="site-label">On for this site</span>
-    </label>
-    <ul id="site-features"></ul>
-  </section>
-  <section>
+
+  <div id="view-controls" role="tabpanel" aria-labelledby="tab-controls">
+    <section id="access" class="card access" hidden>
+      <p>sinkd can't act on pages: its access to sites was turned off.</p>
+      <button type="button" id="grant" class="action">Allow on all sites</button>
+    </section>
+    <section class="card site">
+      <label class="row main">
+        <span class="text"><span id="site-label" class="name">On for this site</span></span>
+        <input type="checkbox" role="switch" class="toggle" id="site-toggle">
+      </label>
+      <ul id="site-features"></ul>
+    </section>
     <h2>Blocking</h2>
-    <ul id="rulesets"></ul>
-  </section>
-  <section>
+    <ul id="rulesets" class="card list"></ul>
     <h2>Privacy</h2>
-    <ul id="features"></ul>
+    <ul id="features" class="card list"></ul>
     <p id="webrtc-note" class="muted note" hidden></p>
-  </section>
-  <section id="bridge" hidden>
-    <h2>sinkd on this computer</h2>
-    <p id="bridge-status" class="muted note"></p>
-    <button type="button" id="bridge-button" class="action">Connect</button>
-  </section>
-  <footer class="muted" id="quota"></footer>
+    <section id="bridge" hidden>
+      <h2>sinkd on this computer</h2>
+      <div class="card pad">
+        <p id="bridge-status" class="muted note"></p>
+        <button type="button" id="bridge-button" class="action">Connect</button>
+      </div>
+    </section>
+    <footer class="muted" id="quota"></footer>
+  </div>
+
+  <div id="view-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+    <section class="console" aria-label="What sinkd did on this page">
+      <div class="console-bar">
+        <span id="log-live" class="live"><span class="pulse" aria-hidden="true"></span><span id="log-state">live</span></span>
+        <span class="console-end">
+          <span class="console-total"><b id="log-total">0</b> <span id="log-caption">actions on this page</span></span>
+          <span id="log-about" class="about">
+            <button type="button" class="about-button" aria-label="About the log" aria-describedby="log-tip">
+              <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><circle cx="8" cy="3.2" r="1.4" fill="currentColor"/><path d="M8 6.6v6.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </button>
+            <span id="log-tip" class="tip" role="tooltip">Adds up to the count on the toolbar icon. Lines from before you opened this are as Chrome reports them: which rule acted, not the address. Click a line for more.</span>
+          </span>
+        </span>
+      </div>
+      <div id="log-filters" class="filters" role="group" aria-label="Show"></div>
+      <div class="screen">
+        <ol id="log-lines" class="lines"></ol>
+        <button type="button" id="log-jump" class="jump" hidden></button>
+      </div>
+    </section>
+  </div>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

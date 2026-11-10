@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "description": "Blocks ads and trackers, strips tracking parameters and cookies, adds fingerprinting protection. No remote code, no data collected.",
   "minimum_chrome_version": "128",
-  "permissions": ["cookies", "declarativeNetRequest", "privacy", "scripting", "storage"],
+  "permissions": ["activeTab", "cookies", "declarativeNetRequest", "privacy", "scripting", "storage", "webRequest"],
   "optional_permissions": ["nativeMessaging"],
   "host_permissions": ["<all_urls>"],
   "background": {

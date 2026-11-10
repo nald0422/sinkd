@@ -3,17 +3,24 @@ import { test } from "node:test";
 
 import {
   aliasBlocked,
+  BLOCKED_ERROR,
   BRIDGE_BLOCK_PRIORITY,
+  BRIDGE_BLOCK_RULE_ID,
   BRIDGE_MAX_REGEX,
   BRIDGE_REGEX_FIRST,
   type Bridge,
+  blockedLine,
   bridgeAllows,
   bridgePaused,
   bridgeRules,
   browserOf,
   COOKIE_CAP_SECONDS,
   cappedCookie,
+  clock,
   cssTarget,
+  DYNAMIC_RULESET,
+  describeRule,
+  earlierLines,
   effectiveSettings,
   exemptSites,
   featureActive,
@@ -23,9 +30,15 @@ import {
   framePaused,
   GPC_RULE_ID,
   HostSets,
+  headerLines,
+  hitHosts,
   hostAndParents,
+  inWords,
+  isExtensionUrl,
   isPaused,
   isTrackingCookie,
+  logEntries,
+  logSource,
   MAX_TOKENS_PER_MESSAGE,
   type Navigation,
   NO_BRIDGE,
@@ -42,12 +55,18 @@ import {
   privacyRules,
   REFERRER_POLICY_RULE_ID,
   type RulesetInfo,
+  redirectLine,
   registrableDomain,
+  removedParams,
+  ruleKey,
   rulesetChanges,
+  ruleTarget,
   type ScriptletEntry,
   type Settings,
+  sameLine,
   scriptChanges,
   scriptletScripts,
+  shortUrl,
   siteOf,
   storedSettings,
   TRACKER_COOKIES_RULE_ID,
@@ -750,4 +769,372 @@ test("stored bridge state survives a round trip and drops junk", () => {
       (r) => r.id,
     ),
   );
+});
+
+// ------------------------------------------------------------------ the log
+
+type Rule = chrome.declarativeNetRequest.Rule;
+const rule = (id: number, action: object, condition: object = {}): Rule =>
+  ({ id, priority: 1, action, condition }) as Rule;
+
+test("a rule's target reads without filter anchors", () => {
+  assert.equal(ruleTarget({ urlFilter: "||doubleclick.net^" }), "doubleclick.net");
+  assert.equal(
+    ruleTarget({ urlFilter: "||doubleclick.net/tag/js/gpt.js" }),
+    "doubleclick.net/tag/js/gpt.js",
+  );
+  assert.equal(ruleTarget({ urlFilter: "|https://a.example/x|" }), "https://a.example/x");
+  assert.equal(ruleTarget({ urlFilter: "/ads/banner*" }), "/ads/banner*");
+  assert.equal(ruleTarget({ regexFilter: "^https?://x\\." }), "^https?://x\\.");
+  assert.equal(ruleTarget({ requestDomains: ["a.example"] }), "a.example");
+  assert.equal(
+    ruleTarget({ requestDomains: ["a.example", "b.example"] }),
+    "a.example and b.example",
+  );
+  assert.equal(
+    ruleTarget({ requestDomains: ["a", "b", "c", "d", "e"].map((d) => `${d}.example`) }),
+    "one of 5 sites",
+  );
+  const frames = ["main_frame", "sub_frame"] as chrome.declarativeNetRequest.ResourceType[];
+  assert.equal(ruleTarget({ resourceTypes: frames }), "pages");
+  assert.equal(ruleTarget({}), "every request");
+});
+
+test("rules are described by what they do, allow rules not at all", () => {
+  assert.deepEqual(describeRule(rule(1, { type: "block" }, { urlFilter: "||ads.example^" })), {
+    action: "blocked",
+    target: "ads.example",
+    detail: "",
+  });
+  assert.equal(describeRule(rule(2, { type: "allow" }, { urlFilter: "||ok.example^" })), null);
+  assert.equal(describeRule(rule(3, { type: "allowAllRequests" })), null);
+  const strip = {
+    type: "redirect",
+    redirect: { transform: { queryTransform: { removeParams: ["utm_source", "fbclid"] } } },
+  };
+  assert.equal(describeRule(rule(4, strip))?.detail, "Removed utm_source and fbclid");
+  assert.equal(describeRule(rule(4, strip))?.action, "cleaned");
+  const query = { type: "redirect", redirect: { transform: { query: "" } } };
+  assert.equal(describeRule(rule(5, query))?.detail, "Removed the query string");
+  const surrogate = {
+    type: "redirect",
+    redirect: { extensionPath: "/war/googletagmanager_gtm.js" },
+  };
+  assert.deepEqual(
+    describeRule(rule(6, surrogate, { urlFilter: "||googletagmanager.com/gtm.js" })),
+    {
+      action: "replaced",
+      target: "googletagmanager.com/gtm.js",
+      detail: "Stand-in script",
+    },
+  );
+  assert.equal(
+    describeRule(rule(7, { type: "redirect", redirect: { extensionPath: "/war/1x1.gif" } }))
+      ?.detail,
+    "Blank image",
+  );
+  assert.equal(describeRule(rule(8, { type: "upgradeScheme" }))?.action, "upgraded");
+  const location = {
+    type: "modifyHeaders",
+    responseHeaders: [{ header: "location", operation: "remove" }],
+  };
+  assert.equal(describeRule(rule(9, location))?.detail, "Removed Location");
+});
+
+test("the privacy rules are described as the headers they change", () => {
+  const rules = new Map(privacyRules(settingsWith(), ["t.example"]).map((r) => [r.id, r]));
+  const gpc = rules.get(GPC_RULE_ID);
+  const cookies = rules.get(TRACKER_COOKIES_RULE_ID);
+  const referer = rules.get(TRACKER_REFERER_RULE_ID);
+  assert.ok(gpc && cookies && referer);
+  assert.deepEqual(describeRule(gpc), {
+    action: "headers",
+    target: "every request",
+    detail: "Sent Sec-GPC: 1",
+  });
+  assert.equal(describeRule(cookies)?.detail, "Removed Cookie and Set-Cookie");
+  assert.equal(describeRule(referer)?.detail, "Removed Referer");
+});
+
+test("the log adds up to the badge: every match but the allow rules", () => {
+  const names = new Map([
+    ["ads", "Ads"],
+    ["unbreak", "Fixes"],
+  ]);
+  const privacy = privacyRules(settingsWith(), ["t.example"]);
+  const rules = new Map<string, Rule>([
+    [ruleKey("ads", 1), rule(1, { type: "block" }, { urlFilter: "||ads.example^" })],
+    [
+      ruleKey("ads", 2),
+      rule(
+        2,
+        { type: "redirect", redirect: { extensionPath: "/war/noop.js" } },
+        { urlFilter: "||tag.example/t.js" },
+      ),
+    ],
+    [ruleKey("unbreak", 3), rule(3, { type: "allow" }, { urlFilter: "||cdn.example^" })],
+    ...privacy.map((r): [string, Rule] => [ruleKey(DYNAMIC_RULESET, r.id), r]),
+  ]);
+  const m = (rulesetId: string, ruleId: number, timeStamp: number) => ({
+    rulesetId,
+    ruleId,
+    timeStamp,
+  });
+  const matches = [
+    m(DYNAMIC_RULESET, GPC_RULE_ID, 100),
+    m("ads", 1, 110),
+    m(DYNAMIC_RULESET, GPC_RULE_ID, 120),
+    m("unbreak", 3, 130),
+    m("ads", 2, 140),
+    m("ads", 1, 150),
+    m(DYNAMIC_RULESET, TRACKER_COOKIES_RULE_ID, 160),
+    // Paused since: the pause rule allows, so the badge left it out.
+    m(DYNAMIC_RULESET, PAUSE_RULE_ID, 170),
+  ];
+  const log = logEntries(matches, rules, names);
+  assert.equal(
+    log.reduce((n, e) => n + e.count, 0),
+    6,
+  );
+  assert.deepEqual(
+    log.map((e) => [e.action, e.target, e.source, e.count, e.last]),
+    [
+      ["blocked", "ads.example", "Ads", 2, 150],
+      ["replaced", "tag.example/t.js", "Ads", 1, 140],
+      ["headers", "known trackers", "Tracking cookies", 1, 160],
+      ["headers", "every request", "Global Privacy Control", 2, 120],
+    ],
+  );
+});
+
+test("a rule switched off since it matched still counts", () => {
+  const log = logEntries(
+    [
+      { rulesetId: DYNAMIC_RULESET, ruleId: GPC_RULE_ID, timeStamp: 1 },
+      { rulesetId: DYNAMIC_RULESET, ruleId: 999, timeStamp: 2 },
+    ],
+    new Map(),
+    new Map(),
+  );
+  assert.deepEqual(
+    log.map((e) => [e.action, e.detail, e.source]),
+    [
+      ["headers", "Sent Sec-GPC: 1", "Global Privacy Control"],
+      ["other", "Since switched off", "sinkd"],
+    ],
+  );
+  assert.equal(
+    logSource("params", 1, new Map([["params", "Tracking parameters"]])),
+    "Tracking parameters",
+  );
+  assert.equal(
+    logSource(DYNAMIC_RULESET, BRIDGE_BLOCK_RULE_ID, new Map()),
+    "sinkd on this computer",
+  );
+});
+
+test("lists read briefly", () => {
+  assert.equal(inWords([]), "");
+  assert.equal(inWords(["a"]), "a");
+  assert.equal(inWords(["a", "b", "c"]), "a, b and c");
+  assert.equal(inWords(["a", "b", "c", "d", "e"]), "a, b, c and 2 more");
+});
+
+test("a rule over many domains is named by the page's hosts it covers", () => {
+  const condition = {
+    requestDomains: ["bing.com", "segment.com", "x.example", "y.example"],
+    excludedRequestDomains: ["ok.bing.com"],
+  };
+  assert.deepEqual(
+    hitHosts(condition, [
+      "bat.bing.com",
+      "site.test",
+      "cdn.segment.com",
+      "ok.bing.com",
+      "bat.bing.com",
+    ]),
+    ["bat.bing.com", "cdn.segment.com"],
+  );
+  const rules = new Map([[ruleKey("privacy", 7), rule(7, { type: "block" }, condition)]]);
+  const at = (hosts: string[]) =>
+    logEntries([{ rulesetId: "privacy", ruleId: 7, timeStamp: 1 }], rules, new Map(), hosts)[0]
+      ?.target;
+  assert.equal(at(["bat.bing.com", "cdn.segment.com"]), "bat.bing.com and cdn.segment.com");
+  assert.equal(at([]), "one of 4 sites");
+  // A host another matched rule names outright went to that rule.
+  rules.set(ruleKey("ads", 9), rule(9, { type: "block" }, { urlFilter: "||segment.com/a.js" }));
+  const both = logEntries(
+    [
+      { rulesetId: "privacy", ruleId: 7, timeStamp: 1 },
+      { rulesetId: "ads", ruleId: 9, timeStamp: 2 },
+    ],
+    rules,
+    new Map(),
+    ["bat.bing.com", "cdn.segment.com"],
+  );
+  assert.deepEqual(
+    both.map((e) => e.target),
+    ["segment.com/a.js", "bat.bing.com"],
+  );
+  const strip = {
+    type: "redirect",
+    redirect: { transform: { queryTransform: { removeParams: ["a", "b", "c", "d"] } } },
+  };
+  assert.equal(describeRule(rule(8, strip))?.detail, "Removed tracking parameters");
+});
+
+// ------------------------------------------------------------- the console
+
+// Stand-ins come from a random per-session host (use_dynamic_url).
+const EXT = "chrome-extension://74a29be7-7d93-409a-afb5-d9f66325d2f3/";
+
+test("live lines: a block, a stand-in and a cleaned link", () => {
+  assert.equal(blockedLine("https://ads.example/a.js", "net::ERR_ABORTED", 1), null);
+  assert.deepEqual(blockedLine("https://ads.example/a.js?x=1", BLOCKED_ERROR, 1), {
+    action: "blocked",
+    text: "ads.example/a.js?x=1",
+    detail: "",
+    mark: "",
+    source: "",
+    at: 1,
+    count: 1,
+    live: true,
+  });
+  const stub = redirectLine(
+    "https://www.googletagmanager.com/gtm.js?id=G",
+    `${EXT}war/googletagmanager_gtm.js`,
+    2,
+  );
+  assert.equal(stub?.action, "replaced");
+  assert.equal(stub?.text, "www.googletagmanager.com/gtm.js?id=G");
+  assert.equal(stub?.detail, "Stand-in script");
+  assert.equal(
+    redirectLine("https://a.test/1.gif", "moz-extension://5f1e/war/1x1.gif", 2)?.detail,
+    "Blank image",
+  );
+  // Another extension's redirect into its own files isn't a stand-in.
+  assert.equal(redirectLine("https://a.test/x.js", `${EXT}other/x.js`, 2), null);
+  assert.equal(isExtensionUrl(`${EXT}war/noop.js`), true);
+  assert.equal(isExtensionUrl("https://a.test/"), false);
+  const clean = redirectLine(
+    "https://site.test/a?utm_source=x&id=7&fbclid=y",
+    "https://site.test/a?id=7",
+    3,
+  );
+  assert.equal(clean?.action, "cleaned");
+  assert.equal(clean?.detail, "Removed utm_source and fbclid");
+  assert.equal(clean?.source, "Tracking parameters");
+  assert.equal(clean?.mark, "−utm_source −fbclid");
+  // The site's own redirects, and HTTPS upgrades, aren't sinkd's.
+  assert.equal(redirectLine("http://site.test/a", "https://site.test/a", 4), null);
+  assert.equal(redirectLine("https://site.test/a", "https://site.test/b", 4), null);
+});
+
+test("a redirect only cleans a link if it just drops parameters", () => {
+  assert.deepEqual(removedParams("https://a.test/p?u=1&k=2", "https://a.test/p?k=2"), ["u"]);
+  assert.deepEqual(removedParams("https://a.test/p?u=1&u=2", "https://a.test/p"), ["u"]);
+  assert.equal(removedParams("https://a.test/p?u=1&k=2", "https://a.test/p?k=3"), null);
+  assert.equal(removedParams("https://a.test/p?u=1", "https://a.test/q"), null);
+  assert.equal(removedParams("https://a.test/p", "https://a.test/p"), null);
+  assert.equal(removedParams("not a url", "https://a.test/p"), null);
+});
+
+test("header changes are read from the headers before and after the rules", () => {
+  const url = "https://www.google-analytics.com/collect?v=1";
+  const sent = headerLines(
+    url,
+    [
+      { name: "Accept", value: "*/*" },
+      { name: "Referer", value: "https://site.test/" },
+    ],
+    [
+      { name: "Accept", value: "*/*" },
+      // As webRequest reports it.
+      { name: "sec-gpc", value: "1" },
+    ],
+    true,
+    5,
+  );
+  assert.deepEqual(
+    sent.map((l) => l.mark),
+    ["+Sec-GPC", "−Referer"],
+  );
+  assert.deepEqual(
+    sent.map((l) => [l.detail, l.source]),
+    [
+      ["Sent Sec-GPC: 1", "Global Privacy Control"],
+      ["Removed Referer", "Referrer"],
+    ],
+  );
+  const received = headerLines(
+    url,
+    [
+      { name: "set-cookie", value: "_ga=1" },
+      { name: "set-cookie", value: "_gid=2" },
+      { name: "referrer-policy", value: "unsafe-url" },
+    ],
+    [{ name: "referrer-policy", value: "strict-origin-when-cross-origin" }],
+    false,
+    6,
+  );
+  assert.deepEqual(
+    received.map((l) => [l.detail, l.source]),
+    [
+      ["Set Referrer-Policy: strict-origin-when-cross-origin", "Referrer"],
+      ["Removed Set-Cookie", "Tracking cookies"],
+    ],
+  );
+  assert.deepEqual(
+    headerLines(url, [{ name: "a", value: "1" }], [{ name: "A", value: "1" }], true, 7),
+    [],
+  );
+});
+
+test("earlier matches become console lines, oldest first", () => {
+  const lines = earlierLines([
+    {
+      key: "ads#1",
+      action: "blocked",
+      target: "ads.example",
+      detail: "",
+      source: "Ads",
+      count: 2,
+      last: 20,
+    },
+    {
+      key: "_dynamic#2",
+      action: "headers",
+      target: "every request",
+      detail: "Sent Sec-GPC: 1",
+      source: "Global Privacy Control",
+      count: 9,
+      last: 30,
+    },
+    {
+      key: "params#3",
+      action: "cleaned",
+      target: "every request",
+      detail: "Removed tracking parameters",
+      source: "Tracking parameters",
+      count: 1,
+      last: 10,
+    },
+  ]);
+  assert.deepEqual(
+    lines.map((l) => [l.text, l.detail, l.count, l.live]),
+    [
+      ["Removed tracking parameters", "every request", 1, false],
+      ["ads.example", "", 2, false],
+      ["Sent Sec-GPC: 1", "every request", 9, false],
+    ],
+  );
+  assert.equal(sameLine(lines[0] as never, lines[0] as never), true);
+  assert.equal(sameLine(lines[0] as never, lines[1] as never), false);
+});
+
+test("addresses and times read as in a console", () => {
+  assert.equal(shortUrl("https://www.example.com/a?b=1"), "www.example.com/a?b=1");
+  assert.equal(shortUrl("wss://chat.example/socket"), "chat.example/socket");
+  const at = new Date(2026, 10, 11, 9, 5, 7).getTime();
+  assert.equal(clock(at), "09:05:07");
 });

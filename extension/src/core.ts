@@ -1168,3 +1168,541 @@ export interface State {
   /** The bridge to the sinkd command line; `granted` once the user allowed it. */
   bridge: Bridge & { granted: boolean; supported: boolean };
 }
+
+// ------------------------------------------------------------------ the log
+//
+// The toolbar badge is Chrome's own count (displayActionCountAsBadgeText):
+// each time one of sinkd's rules did something to a request in the tab. A
+// block, a redirect, a scheme upgrade and a header change all count, so the
+// Global Privacy Control header, sent with every request, counts on every
+// request. Allow rules change nothing, and the badge leaves them out.
+// getMatchedRules lists the same matches plus the allow rules; without
+// those, the log adds up to the badge. Chrome names the rule that acted,
+// not the request, so each line says what its rule targets.
+
+/** Chrome's name for the dynamic rules in a match. */
+export const DYNAMIC_RULESET = "_dynamic";
+/** Chrome's name for the session rules in a match. */
+export const SESSION_RULESET = "_session";
+
+/** What a rule did to a request. */
+export type LogAction = "blocked" | "replaced" | "cleaned" | "upgraded" | "headers" | "other";
+
+/** The kinds of action, in the order the log shows them. */
+export const LOG_ACTIONS: readonly { id: LogAction; name: string }[] = [
+  { id: "blocked", name: "Blocked" },
+  { id: "replaced", name: "Replaced" },
+  { id: "cleaned", name: "Cleaned" },
+  { id: "upgraded", name: "Upgraded" },
+  { id: "headers", name: "Headers" },
+  { id: "other", name: "Other" },
+];
+
+/** A rule match, as getMatchedRules reports it. */
+export interface Match {
+  rulesetId: string;
+  ruleId: number;
+  /** When it matched, in ms since the epoch. */
+  timeStamp: number;
+}
+
+/** What a rule does, in words. */
+export interface RuleSummary {
+  action: LogAction;
+  /** What it acts on: a host, an address pattern, "every request". */
+  target: string;
+  /** What it does there; empty for a block, which says it all. */
+  detail: string;
+}
+
+/** One line of the log: one rule, and how often it acted. */
+export interface LogEntry extends RuleSummary {
+  /** `<ruleset>#<rule id>` */
+  key: string;
+  /** The switch it belongs to: a ruleset's name, or a feature's. */
+  source: string;
+  count: number;
+  /** When it last acted, in ms since the epoch. */
+  last: number;
+}
+
+export const ruleKey = (rulesetId: string, ruleId: number): string => `${rulesetId}#${ruleId}`;
+
+const count = (n: number): string => n.toLocaleString("en-US");
+
+/** A list in words: "a", "a and b", "a, b and c", "a, b, c and 4 more". */
+export function inWords(items: readonly string[], max = 3): string {
+  if (items.length <= 1) {
+    return items[0] ?? "";
+  }
+  if (items.length > max) {
+    return `${items.slice(0, max).join(", ")} and ${count(items.length - max)} more`;
+  }
+  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+/** What a rule's condition matches, as briefly as it can be said. */
+export function ruleTarget(condition: DnrCondition): string {
+  if (condition.urlFilter) {
+    // `||host^` and `|https://…|` read better without their anchors.
+    const plain = condition.urlFilter.replace(/^\|\|?/, "").replace(/\^?\|?$/, "");
+    if (plain !== "") {
+      return plain;
+    }
+  }
+  if (condition.regexFilter) {
+    return condition.regexFilter;
+  }
+  const domains = condition.requestDomains ?? [];
+  if (domains.length > 0) {
+    return domains.length <= 3 ? inWords(domains) : `one of ${count(domains.length)} sites`;
+  }
+  const types = (condition.resourceTypes ?? []) as string[];
+  if (types.length > 0 && types.every((t) => t === "main_frame" || t === "sub_frame")) {
+    return "pages";
+  }
+  return "every request";
+}
+
+/** "set-cookie" → "Set-Cookie"; a name already in capitals stays as it is. */
+const headerName = (name: string): string =>
+  HEADER_SPELLINGS[name] ??
+  (name === name.toLowerCase()
+    ? name.replace(/(^|-)([a-z])/g, (_, dash: string, c: string) => dash + c.toUpperCase())
+    : name);
+/** Headers whose usual spelling isn't the capitalized words. */
+const HEADER_SPELLINGS: Record<string, string> = { "sec-gpc": "Sec-GPC", dnt: "DNT" };
+
+/** What a modifyHeaders action does, in words. */
+function headerChanges(action: chrome.declarativeNetRequest.RuleAction): string {
+  const removed: string[] = [];
+  const changes: string[] = [];
+  const read = (
+    headers: chrome.declarativeNetRequest.ModifyHeaderInfo[] | undefined,
+    request: boolean,
+  ) => {
+    for (const h of headers ?? []) {
+      const name = headerName(h.header);
+      switch (h.operation as string) {
+        case "remove":
+          removed.push(name);
+          break;
+        case "set":
+          changes.push(`${request ? "Sent" : "Set"} ${name}: ${h.value ?? ""}`);
+          break;
+        default:
+          changes.push(`Added to ${name}`);
+      }
+    }
+  };
+  read(action.requestHeaders, true);
+  read(action.responseHeaders, false);
+  if (removed.length > 0) {
+    changes.unshift(`Removed ${inWords(removed)}`);
+  }
+  return changes.join("; ") || "Changed headers";
+}
+
+/** The harmless file a redirect serves instead, by its extension. */
+function standIn(path: string): string {
+  if (path.endsWith(".js")) return "Stand-in script";
+  if (path.endsWith(".html")) return "Blank page";
+  if (/\.(gif|png|jpe?g|svg)$/.test(path)) return "Blank image";
+  if (/\.(mp3|mp4|webm)$/.test(path)) return "Silent media";
+  return "Empty response";
+}
+
+/** What `rule` does, or `null` for an allow rule, which does nothing. */
+export function describeRule(rule: DnrRule): RuleSummary | null {
+  const action = rule.action;
+  const target = ruleTarget(rule.condition);
+  switch (action.type as string) {
+    case "block":
+      return { action: "blocked", target, detail: "" };
+    case "redirect": {
+      const redirect = action.redirect ?? {};
+      const params = redirect.transform?.queryTransform?.removeParams ?? [];
+      if (params.length > 0) {
+        // The general rule names over a hundred; a site's own, one or two.
+        const detail =
+          params.length <= 3 ? `Removed ${inWords(params)}` : "Removed tracking parameters";
+        return { action: "cleaned", target, detail };
+      }
+      if (redirect.transform?.query === "") {
+        return { action: "cleaned", target, detail: "Removed the query string" };
+      }
+      if (redirect.extensionPath) {
+        return {
+          action: "replaced",
+          target,
+          detail: standIn(redirect.extensionPath),
+        };
+      }
+      return { action: "replaced", target, detail: "Redirected" };
+    }
+    case "upgradeScheme":
+      return { action: "upgraded", target, detail: "Switched to HTTPS" };
+    case "modifyHeaders":
+      return { action: "headers", target, detail: headerChanges(action) };
+    default:
+      return null;
+  }
+}
+
+/**
+ * The hosts in `hosts` that a rule's domain list covers: which of the
+ * names on the page a rule like "one of 43,479 sites" acted on. `hosts`
+ * are the ones the tab's frames loaded from or point elements at.
+ */
+export function hitHosts(condition: DnrCondition, hosts: readonly string[]): string[] {
+  const listed = new Set(condition.requestDomains ?? []);
+  const excluded = new Set(condition.excludedRequestDomains ?? []);
+  const covered = (host: string, names: Set<string>) =>
+    hostAndParents(host).some((name) => names.has(name));
+  return [...new Set(hosts)]
+    .filter((host) => covered(host, listed) && !covered(host, excluded))
+    .sort();
+}
+
+/** The feature each privacy rule belongs to. */
+const PRIVACY_RULE_FEATURES: Record<number, FeatureId> = {
+  [GPC_RULE_ID]: "gpc",
+  [REFERRER_POLICY_RULE_ID]: "referrer",
+  [TRACKER_REFERER_RULE_ID]: "referrer",
+  [TRACKER_COOKIES_RULE_ID]: "cookies",
+};
+
+/** The switch a matched rule belongs to, by name. */
+export function logSource(
+  rulesetId: string,
+  ruleId: number,
+  rulesetNames: ReadonlyMap<string, string>,
+): string {
+  if (rulesetId !== DYNAMIC_RULESET) {
+    return rulesetNames.get(rulesetId) ?? "sinkd";
+  }
+  const feature = PRIVACY_RULE_FEATURES[ruleId];
+  if (feature) {
+    return FEATURES.find((f) => f.id === feature)?.name ?? "sinkd";
+  }
+  return BRIDGE_RULE_IDS.includes(ruleId) ? "sinkd on this computer" : "sinkd";
+}
+
+/**
+ * The privacy rules as they are with every feature on, for matches of one
+ * that has since been switched off: the badge still counts those.
+ */
+let privacyRulesOn: Map<number, DnrRule> | undefined;
+const privacyRuleOn = (id: number): DnrRule | undefined => {
+  privacyRulesOn ??= new Map(
+    privacyRules(normalizeSettings(undefined), ["tracker.invalid"]).map((r) => [r.id, r]),
+  );
+  return privacyRulesOn.get(id);
+};
+
+/** What a dynamic rule that matched, and is gone now, did. */
+function goneRule(match: Match): RuleSummary | null {
+  if (match.rulesetId === DYNAMIC_RULESET) {
+    if (match.ruleId === PAUSE_RULE_ID || match.ruleId === BRIDGE_ALLOW_RULE_ID) {
+      return null;
+    }
+    const privacy = privacyRuleOn(match.ruleId);
+    if (privacy) {
+      return describeRule(privacy);
+    }
+  }
+  return { action: "other", target: `rule ${match.ruleId}`, detail: "Since switched off" };
+}
+
+/**
+ * The log: the tab's matches (getMatchedRules), one entry per rule that
+ * acted, allow rules left out. `rules` holds the rules by ruleKey; a rule
+ * that isn't there any more is still counted, as the badge counts it. A
+ * rule over a list of domains is named by the page's hosts it covers
+ * (`pageHosts`, see hitHosts). Ordered by action (LOG_ACTIONS), then most
+ * recent first.
+ */
+export function logEntries(
+  matches: readonly Match[],
+  rules: ReadonlyMap<string, DnrRule>,
+  rulesetNames: ReadonlyMap<string, string>,
+  pageHosts: readonly string[] = [],
+): LogEntry[] {
+  // A host that a matched rule names outright (`||host/path`) went to that
+  // rule, so a rule over a list of domains acted on the page's other hosts.
+  // Better "one of 43,479 sites" than a wrong name.
+  const named = new Set(
+    matches.flatMap((m) => {
+      const filter = rules.get(ruleKey(m.rulesetId, m.ruleId))?.condition.urlFilter;
+      const host = filter?.match(/^\|\|([a-z0-9.-]+)/i)?.[1]?.toLowerCase();
+      return host ? [host] : [];
+    }),
+  );
+  const unnamed = pageHosts.filter((h) => !hostAndParents(h).some((name) => named.has(name)));
+  const entries = new Map<string, LogEntry | null>();
+  for (const match of matches) {
+    const key = ruleKey(match.rulesetId, match.ruleId);
+    let entry = entries.get(key);
+    if (entry === undefined) {
+      const rule = rules.get(key);
+      const summary = rule ? describeRule(rule) : goneRule(match);
+      const condition = rule?.condition;
+      const hits =
+        condition && !condition.urlFilter && !condition.regexFilter
+          ? hitHosts(condition, unnamed)
+          : [];
+      const trackerRule =
+        match.rulesetId === DYNAMIC_RULESET &&
+        (match.ruleId === TRACKER_COOKIES_RULE_ID || match.ruleId === TRACKER_REFERER_RULE_ID);
+      entry =
+        summary === null
+          ? null
+          : {
+              ...summary,
+              ...(hits.length > 0
+                ? { target: inWords(hits) }
+                : // The tracker list is tens of thousands of names.
+                  trackerRule
+                  ? { target: "known trackers" }
+                  : {}),
+              key,
+              source: logSource(match.rulesetId, match.ruleId, rulesetNames),
+              count: 0,
+              last: 0,
+            };
+      entries.set(key, entry);
+    }
+    if (entry) {
+      entry.count += 1;
+      entry.last = Math.max(entry.last, match.timeStamp);
+    }
+  }
+  const order = (a: LogAction) => LOG_ACTIONS.findIndex((x) => x.id === a);
+  return [...entries.values()]
+    .filter((e): e is LogEntry => e !== null)
+    .sort((a, b) => order(a.action) - order(b.action) || b.last - a.last);
+}
+
+// ------------------------------------------------------------- the console
+//
+// The log, live. On opening, the popup reads what sinkd did on the page so
+// far (logEntries); from then on it watches the tab's requests through
+// webRequest, which sees what the browser's rules did to each one:
+// - a block fails with ERR_BLOCKED_BY_CLIENT;
+// - a stand-in is a redirect into the extension;
+// - a cleaned link is a redirect to the same address, less some parameters;
+// - a header change is a difference between a request's headers before the
+//   rules ran and as sent (or a response's, as received and as passed on).
+// Each of these is one rule match, so the total goes on matching the badge.
+// Unlike the earlier matches, these lines have the request's address.
+
+/** One line of the console. */
+export interface ConsoleLine {
+  action: LogAction;
+  /** The address; for a match from before the popup opened, what its rule targets. */
+  text: string;
+  /** What was done, where the tag doesn't say it all. */
+  detail: string;
+  /** The same, in a few characters before the text: "+Sec-GPC", "−fbclid". */
+  mark: string;
+  /** The switch it belongs to, when it's known. */
+  source: string;
+  /** When, in ms since the epoch. */
+  at: number;
+  /** How many times: earlier matches of one rule, or the same line in a row. */
+  count: number;
+  /** Seen as it happened, rather than read back from the browser. */
+  live: boolean;
+}
+
+/** The error a request blocked by an extension's rules fails with. */
+export const BLOCKED_ERROR = "net::ERR_BLOCKED_BY_CLIENT";
+
+/** Each action's tag in the console, five characters at most. */
+export const CONSOLE_TAGS: Record<LogAction, string> = {
+  blocked: "block",
+  replaced: "stub",
+  cleaned: "clean",
+  upgraded: "https",
+  headers: "hdr",
+  other: "misc",
+};
+
+/** Targets that say nothing about one request. */
+const GENERAL_TARGETS = ["every request", "pages"];
+
+/**
+ * The matches from before the popup opened, as console lines, oldest first.
+ * Most lead with what was hit; header changes and rules over every request,
+ * with what was done.
+ */
+export function earlierLines(entries: readonly LogEntry[]): ConsoleLine[] {
+  return entries
+    .map((e) => {
+      const byDetail =
+        e.action === "headers" || e.action === "other" || GENERAL_TARGETS.includes(e.target);
+      return {
+        action: e.action,
+        text: byDetail ? e.detail : e.target,
+        detail: byDetail ? e.target : e.detail,
+        mark: "",
+        source: e.source,
+        at: e.last,
+        count: e.count,
+        live: false,
+      };
+    })
+    .sort((a, b) => a.at - b.at);
+}
+
+/** An address as the console shows it: without the scheme. */
+export const shortUrl = (url: string): string => url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+
+/**
+ * The parameters a redirect took off an address, or `null` if it did
+ * anything else: another path, another host, a changed value.
+ */
+export function removedParams(from: string, to: string): string[] | null {
+  let a: URL;
+  let b: URL;
+  try {
+    a = new URL(from);
+    b = new URL(to);
+  } catch {
+    return null;
+  }
+  if (a.origin !== b.origin || a.pathname !== b.pathname || a.hash !== b.hash) {
+    return null;
+  }
+  const kept = new Set(b.searchParams.keys());
+  for (const key of kept) {
+    if (a.searchParams.getAll(key).join("\n") !== b.searchParams.getAll(key).join("\n")) {
+      return null;
+    }
+  }
+  const removed = [...new Set(a.searchParams.keys())].filter((key) => !kept.has(key));
+  return removed.length > 0 ? removed : null;
+}
+
+const liveLine = (
+  action: LogAction,
+  url: string,
+  detail: string,
+  source: string,
+  at: number,
+  mark = "",
+): ConsoleLine => ({ action, text: shortUrl(url), detail, mark, source, at, count: 1, live: true });
+
+/** A stand-in's address (war/ in the package), with its path. */
+const STAND_IN_URL = /^(?:chrome|moz)-extension:\/\/[^/]+(\/war\/[^?#]*)/;
+
+/** Whether a request is for one of the extension's own files. */
+export const isExtensionUrl = (url: string): boolean => /^(?:chrome|moz)-extension:/.test(url);
+
+/** A blocked request's line, from webRequest's onErrorOccurred. */
+export function blockedLine(url: string, error: string, at: number): ConsoleLine | null {
+  return error === BLOCKED_ERROR ? liveLine("blocked", url, "", "", at) : null;
+}
+
+/**
+ * A redirect's line, from webRequest's onBeforeRedirect: a stand-in from
+ * the extension, or a cleaned link. Other redirects (the site's own, HSTS)
+ * aren't sinkd's.
+ */
+export function redirectLine(
+  url: string,
+  redirectUrl: string,
+  at: number,
+  paramsSource = "Tracking parameters",
+): ConsoleLine | null {
+  // The stand-ins are web-accessible with use_dynamic_url, so a redirect
+  // goes to a random per-session host, not the extension's id.
+  const standInPath = redirectUrl.match(STAND_IN_URL)?.[1];
+  if (standInPath) {
+    return liveLine("replaced", url, standIn(standInPath), "", at);
+  }
+  const removed = removedParams(url, redirectUrl);
+  if (removed === null) {
+    return null;
+  }
+  const detail =
+    removed.length <= 3 ? `Removed ${inWords(removed)}` : "Removed tracking parameters";
+  const mark =
+    removed.length <= 2 ? removed.map((p) => `−${p}`).join(" ") : `−${removed.length} params`;
+  return liveLine("cleaned", url, detail, paramsSource, at, mark);
+}
+
+/** The feature each header sinkd changes belongs to. */
+const HEADER_FEATURES: Record<string, FeatureId> = {
+  "sec-gpc": "gpc",
+  referer: "referrer",
+  "referrer-policy": "referrer",
+  cookie: "cookies",
+  "set-cookie": "cookies",
+};
+
+type HeaderList = readonly { name: string; value?: string | undefined }[];
+
+/**
+ * The header changes between `before` and `after`, one line each: the
+ * request's headers before the rules ran and as sent (`request`), or the
+ * response's as received and as passed on.
+ */
+export function headerLines(
+  url: string,
+  before: HeaderList,
+  after: HeaderList,
+  request: boolean,
+  at: number,
+): ConsoleLine[] {
+  // As the browser spells them ("Sec-GPC"), when it does; matched by lowercase.
+  const spelled = new Map<string, string>();
+  const byName = (headers: HeaderList) => {
+    const map = new Map<string, string>();
+    for (const h of headers) {
+      const name = h.name.toLowerCase();
+      if (!spelled.has(name) || h.name !== name) spelled.set(name, headerName(h.name));
+      map.set(name, map.has(name) ? `${map.get(name)}\n${h.value ?? ""}` : (h.value ?? ""));
+    }
+    return map;
+  };
+  const was = byName(before);
+  const now = byName(after);
+  const display = (name: string) => spelled.get(name) ?? headerName(name);
+  const source = (name: string) => {
+    const feature = HEADER_FEATURES[name];
+    return FEATURES.find((f) => f.id === feature)?.name ?? "sinkd";
+  };
+  const lines: ConsoleLine[] = [];
+  const change = (name: string, detail: string, mark: string) =>
+    lines.push(liveLine("headers", url, detail, source(name), at, `${mark}${display(name)}`));
+  for (const [name, value] of now) {
+    if (!was.has(name)) {
+      change(name, `${request ? "Sent" : "Added"} ${display(name)}: ${value}`, "+");
+    } else if (was.get(name) !== value) {
+      change(name, `Set ${display(name)}: ${value}`, "~");
+    }
+  }
+  for (const name of was.keys()) {
+    if (!now.has(name)) {
+      change(name, `Removed ${display(name)}`, "−");
+    }
+  }
+  return lines;
+}
+
+/** Whether two lines say the same thing, so the second only adds to the count. */
+export const sameLine = (a: ConsoleLine, b: ConsoleLine): boolean =>
+  a.live === b.live &&
+  a.action === b.action &&
+  a.text === b.text &&
+  a.detail === b.detail &&
+  a.source === b.source;
+
+/** A time of day as the console shows it: 14:02:11. */
+export function clock(at: number): string {
+  const d = new Date(at);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map((n) => String(n).padStart(2, "0"))
+    .join(":");
+}

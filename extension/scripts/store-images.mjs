@@ -214,13 +214,13 @@ try {
   await popup.addInitScript((site) => {
     chrome.tabs.query = async () => [{ id: 1, url: `http://${site}/climate/tides` }];
   }, SITE);
-  await popup.setViewportSize({ width: 332, height: 900 });
+  await popup.setViewportSize({ width: 340, height: 900 });
   await popup.goto(`chrome-extension://${id}/popup.html`);
   await popup.waitForSelector("#site-features li");
   const popupHeight = await popup.evaluate(() => document.body.scrollHeight);
-  await popup.setViewportSize({ width: 332, height: popupHeight });
+  await popup.setViewportSize({ width: 340, height: popupHeight });
   const popupFull = await popup.screenshot();
-  const popupTop = await popup.screenshot({ clip: { x: 0, y: 0, width: 332, height: 470 } });
+  const popupTop = await popup.screenshot({ clip: { x: 0, y: 0, width: 340, height: 470 } });
 
   // The page, without and with the extension.
   const shootPage = async (context) => {

@@ -988,6 +988,11 @@ Apache-2.0:
   - Host access to every site, because surrogate redirects, parameter
     stripping, header edits and (M6) the content script need it. Plain
     blocking would not.
+  - `activeTab` and `webRequest`, for the popup's log: `getMatchedRules`
+    for the tab the popup was opened on, then that tab's requests while
+    the popup is open. (`declarativeNetRequestFeedback` would read every
+    tab, and Chrome warns about it; `webRequest` adds no warning to the
+    host access sinkd already has.) The worker never listens.
   - Development builds (`--dev`) add `declarativeNetRequestFeedback` for
     `testMatchOutcome` in the end-to-end test.
   - Firefox (M8) adds `dns`, `webRequest` and `webRequestBlocking` for
@@ -1003,8 +1008,36 @@ Apache-2.0:
     pages and frames.
   - DNR cannot turn off *one* feature on one site (an allow rule cancels
     everything below it), so the per-site switch is all-or-nothing.
-- **Badge:** `displayActionCountAsBadgeText` counts the requests the
-  extension acted on in each tab.
+- **Badge:** `displayActionCountAsBadgeText` counts each match in the tab
+  of a rule that did something: a block, a redirect, a header change.
+  Allow rules are left out. The Global Privacy Control header is a header
+  change on every request, so on a busy page most of the count is GPC.
+- **Log:** the popup's second view is a live console of those matches, so
+  it adds up to the badge.
+  - On opening: `getMatchedRules` for the tab, minus the allow rules,
+    grouped by rule. Chrome reports the rule, not the request, so these
+    lines say what their rule targets. A rule over a list of domains is
+    named by the page's hosts it covers, unless another matched rule names
+    that host outright; it would rather say "one of 43,479 sites" than a
+    wrong name. Reads outside a click are capped at 20 per 10 minutes,
+    which is why the live part doesn't poll.
+  - From then on, `webRequest` in the popup, for that tab only, with the
+    request's address: a block is `ERR_BLOCKED_BY_CLIENT`; a stand-in is a
+    redirect to a `war/` file (on a random per-session host, as
+    `use_dynamic_url` serves them); a cleaned link is a redirect that only
+    drops parameters; a header change is a difference between
+    `onBeforeSendHeaders` and `onSendHeaders` (requests) or
+    `onHeadersReceived` and `onResponseStarted` (responses). Chrome counts
+    a header rule only when it changed a header, so each difference is one
+    match. Only requests that start after opening count, so nothing is
+    counted twice.
+  - A new page in the tab starts the count over, as the badge does.
+  - Measured against the badge in Chromium: equal on opening, after new
+    requests while open, and after a reload. A block by another extension
+    looks the same to `webRequest`, so with a second blocker installed the
+    live lines can run ahead of the badge.
+  - Firefox has neither the count nor `getMatchedRules`, so its popup has
+    no log.
 - **Messages:** settings change only from the extension's own pages. The
   content script (M6) may ask for its own frame's cosmetic rules and
   nothing else; its messages are validated like any untrusted input,

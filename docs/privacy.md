@@ -1,6 +1,6 @@
 # Privacy policy
 
-*sinkd, version 0.1. Last updated 2026-11-09.*
+*sinkd, version 0.1. Last updated 2026-11-11.*
 
 **sinkd collects no data about you.** It has no account, no analytics, no
 telemetry, no crash reporting and no server of its own. Nothing it sees
@@ -17,6 +17,12 @@ is sent to the developer or to anyone else.
   device. A random key for fingerprint protection, kept only for the
   browser session. If you connect the browser bridge, the allowlist,
   blocklist and pause state it receives from sinkd on your computer.
+- **The log** (Chrome). When you open the popup, it asks Chrome which of
+  sinkd's rules acted in that tab, and reads the hostnames the page loaded
+  from, to say which ones a rule over a list of sites acted on. While the
+  popup stays open, it watches that tab's requests (their addresses and
+  headers) to show what sinkd does to each as it happens. It shows this in
+  the popup and keeps nothing once the popup closes.
 - **Network.** The extension makes no network requests of its own. It
   updates only when the store updates it.
 - **Cookies.** It removes cookies from requests to known trackers, and

@@ -199,7 +199,9 @@ export function firefoxManifest(chromeManifest) {
   const manifest = structuredClone(chromeManifest);
   delete manifest.minimum_chrome_version;
   manifest.background = { scripts: ["background.js"], type: "module" };
-  manifest.permissions = [...manifest.permissions, "dns", "webRequest", "webRequestBlocking"];
+  manifest.permissions = [
+    ...new Set([...manifest.permissions, "dns", "webRequest", "webRequestBlocking"]),
+  ];
   // Chrome's guard against probing for an extension's resources; Firefox
   // gives each install its own random moz-extension:// host instead.
   for (const resources of manifest.web_accessible_resources) {
