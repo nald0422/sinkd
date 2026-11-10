@@ -20,15 +20,19 @@ lists = ["tracking-params"]
 [[list]]
 name = "blocking"
 path = "blocking.txt"
+license = "MIT OR Apache-2.0"
 
 [[list]]
 name = "surrogates-ads"
 path = "../../lists/surrogates-ads.txt"
+license = "MIT OR Apache-2.0"
 
 [[list]]
 name = "surrogates-privacy"
 path = "../../lists/surrogates-privacy.txt"
+license = "MIT OR Apache-2.0"
 
 [[list]]
 name = "tracking-params"
 path = "../../lists/tracking-params.txt"
+license = "MIT OR Apache-2.0"
