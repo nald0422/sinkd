@@ -115,13 +115,12 @@
 
 ## How it works
 
-```mermaid
-flowchart LR
-    L["Filter lists<br/>EasyList · EasyPrivacy · uBlock Origin"] --> C["sinkd compile<br/>one rule engine, in Rust"]
-    C --> E["Browser extension<br/>network rules · page engine (wasm) · scriptlets"]
-    C --> R["Local DNS resolver<br/>for every app on the machine"]
-    R -- "everything not blocked" --> U["Encrypted DNS<br/>Quad9 · Cloudflare"]
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/how-it-works-dark.svg">
+    <img src="docs/images/how-it-works-light.svg" width="900" alt="Filter lists (EasyList, EasyPrivacy, uBlock Origin) go into sinkd compile, one rule engine in Rust. It feeds the browser extension, which blocks in the page, and the local DNS resolver for every app, which answers blocked names with 0.0.0.0 and sends the rest to encrypted DNS (Quad9, Cloudflare).">
+  </picture>
+</p>
 
 ## Get started
 
