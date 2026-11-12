@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560"><title>A coastline at low sun</title>
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfd8d4"/><stop offset="1" stop-color="#eef0ea"/></linearGradient></defs>
+<rect width="1200" height="560" fill="url(#sky)"/>
+<circle cx="900" cy="150" r="56" fill="#f4ead6"/>
+<path d="M0 330 C200 250 380 300 560 260 C760 215 920 280 1200 230 V560 H0Z" fill="#a9b5a3"/>
+<path d="M0 390 C240 340 470 380 700 345 C900 315 1040 350 1200 330 V560 H0Z" fill="#8a9886"/>
+<path d="M0 450 C300 425 600 455 900 430 C1020 420 1120 430 1200 425 V560 H0Z" fill="#6f8a93"/>
+<path d="M0 490 C300 475 600 500 900 482 C1030 475 1130 480 1200 478 V560 H0Z" fill="#5e7983"/></svg>

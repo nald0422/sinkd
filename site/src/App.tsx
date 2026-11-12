@@ -1,14 +1,8 @@
+import { useState } from "react";
 import { Logo } from "./components/Logo";
-import {
-  BeforeAfter,
-  EveryApp,
-  Hero,
-  Honest,
-  Idea,
-  Open,
-  Privacy,
-  Process,
-} from "./components/Panels";
+import { BeforeAfter, EveryApp, Hero, Idea, Open, Privacy, Process } from "./components/Panels";
+import { Splash } from "./components/Splash";
+import { wantSplash } from "./splash";
 import { useHorizontalScroll } from "./useHorizontalScroll";
 
 /** Header links, by the index of the panel they go to. */
@@ -18,41 +12,35 @@ const NAV = [
   ["Privacy", 3],
   ["Every app", 4],
   ["How it's made", 5],
-  ["Open source", 7],
+  ["Open source", 6],
 ] as const;
 /** Every panel's name, for the header on a phone. */
-const NAMES = [
-  "",
-  "The idea",
-  "On a page",
-  "Privacy",
-  "Every app",
-  "How it's made",
-  "Honestly",
-  "Open source",
-];
+const NAMES = ["", "The idea", "On a page", "Privacy", "Every app", "How it's made", "Open source"];
 const PANELS = NAMES.length;
 /** The panels on ink, where the header and counter turn light. */
-const DARK: readonly number[] = [4, 7];
+const DARK: readonly number[] = [4, 6];
 
 export function App() {
   const { sectionRef, trackRef, barRef, horizontal, height, snaps, active, goTo } =
     useHorizontalScroll();
   const dark = DARK.includes(active);
+  // Decided once, before the hero's mark asks whether to wait for it.
+  const [splash] = useState(wantSplash);
 
   return (
     <>
+      {splash && <Splash />}
       <header
         className={`fixed inset-x-0 top-0 z-20 flex items-center justify-between px-6 py-4 transition-colors duration-500 md:px-16 md:py-5 lg:px-24 ${
-          horizontal && dark ? "text-sand" : "text-ink"
-        } ${horizontal ? "" : "bg-paper/85 backdrop-blur-md"}`}
+          horizontal && dark ? "text-mist" : "text-ink"
+        } ${horizontal ? "" : "bg-white/85 backdrop-blur-md"}`}
       >
         <button
           type="button"
           onClick={() => goTo(0)}
           className="flex items-center gap-3 text-lg font-medium tracking-tight"
         >
-          <Logo size={30} variant={horizontal && dark ? "basalt" : "stone"} />
+          <Logo size={30} variant={horizontal && dark ? "paper" : "graphite"} />
           sinkd
         </button>
         {horizontal && (
@@ -103,7 +91,6 @@ export function App() {
             <Privacy />
             <EveryApp />
             <Process />
-            <Honest />
             <Open />
           </div>
         </div>
@@ -112,11 +99,14 @@ export function App() {
       {horizontal && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20">
           <div className="flex items-center justify-end px-6 pb-4 font-mono text-xs md:px-16 md:pb-6 lg:px-24">
-            <span className={dark ? "text-muted-dark" : "text-muted"}>
+            <span className={dark ? "text-silver" : "text-smoke"}>
               {String(active + 1).padStart(2, "0")} / {String(PANELS).padStart(2, "0")}
             </span>
           </div>
-          <div ref={barRef} className="h-0.5 origin-left scale-x-0 bg-clay" />
+          <div
+            ref={barRef}
+            className={`h-0.5 origin-left scale-x-0 ${dark ? "bg-white" : "bg-ink"}`}
+          />
         </div>
       )}
     </>

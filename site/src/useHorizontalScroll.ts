@@ -9,7 +9,8 @@
 // - on a touch screen, a swipe in any direction. The page itself doesn't
 //   pan (`touch-action`), so nothing scrolls halfway. A sideways swipe on a
 //   carousel turns its cards instead, and turns the page once it is past
-//   the last card (or before the first).
+//   the last card (or before the first). One on a control marked
+//   `data-drag` (the page sweep) is the control's, as are its keys.
 // Scrollbar drags are left to CSS scroll snapping, one point per panel.
 //
 // Readers who ask for reduced motion get the same panels, without the
@@ -58,6 +59,9 @@ const panelsOf = (track: HTMLElement | null) => Array.from(track?.children ?? []
 /** The carousel an event happened in, if any (components/Carousel.tsx). */
 const carouselOf = (target: EventTarget | null) =>
   target instanceof Element ? target.closest<HTMLElement>("[data-carousel]") : null;
+/** A control that takes sideways drags and the arrow keys for itself (`data-drag`). */
+const dragOf = (target: EventTarget | null) =>
+  target instanceof Element ? target.closest<HTMLElement>("[data-drag]") : null;
 
 /** Whether a carousel is at its first card, and at its last. */
 function edges(carousel: HTMLElement | null) {
@@ -193,7 +197,12 @@ export function useHorizontalScroll() {
     };
     // A swipe: up or left is forward, down or right is back.
     let touch:
-      | ({ x: number; y: number; carousel: HTMLElement | null } & ReturnType<typeof edges>)
+      | ({
+          x: number;
+          y: number;
+          carousel: HTMLElement | null;
+          drag: HTMLElement | null;
+        } & ReturnType<typeof edges>)
       | null = null;
     const onTouchStart = (event: TouchEvent) => {
       const point = event.touches[0];
@@ -202,7 +211,8 @@ export function useHorizontalScroll() {
         return;
       }
       const carousel = carouselOf(event.target);
-      touch = { x: point.clientX, y: point.clientY, carousel, ...edges(carousel) };
+      const drag = dragOf(event.target);
+      touch = { x: point.clientX, y: point.clientY, carousel, drag, ...edges(carousel) };
     };
     const onTouchEnd = (event: TouchEvent) => {
       const start = touch;
@@ -212,6 +222,8 @@ export function useHorizontalScroll() {
       const dx = point.clientX - start.x;
       const dy = point.clientY - start.y;
       if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE) return; // a tap
+      // A sideways drag on a control that takes them is that control's.
+      if (start.drag && Math.abs(dx) >= Math.abs(dy)) return;
       if (Math.abs(dy) > Math.abs(dx)) {
         step(dy < 0 ? 1 : -1);
         return;
@@ -228,6 +240,7 @@ export function useHorizontalScroll() {
     // focused button or link still presses it.
     const onKey = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (dragOf(event.target)) return; // its own keys
       const onControl = (event.target as HTMLElement).closest?.("a, button, input, textarea");
       let move = KEYS[event.key];
       if (event.key === " " && !onControl) move = event.shiftKey ? -1 : 1;

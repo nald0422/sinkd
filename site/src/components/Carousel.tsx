@@ -63,10 +63,10 @@ export function Carousel({
             aria-current={i === index ? "step" : undefined}
             className={`grid size-9 shrink-0 place-items-center rounded-full font-mono text-[11px] transition-colors duration-300 ${
               i === index
-                ? "bg-ink text-paper"
+                ? "bg-ink text-white"
                 : i < index
-                  ? "bg-clay text-paper"
-                  : "bg-paper text-ink ring-1 ring-ink/25"
+                  ? "bg-smoke text-white"
+                  : "bg-white text-ink ring-1 ring-ink/25"
             }`}
           >
             {pad(i + 1)}
@@ -74,11 +74,11 @@ export function Carousel({
           {i < count - 1 && (
             <span aria-hidden className="mx-2 flex flex-1 items-center">
               <span
-                className={`h-px flex-1 transition-colors duration-300 ${i < index ? "bg-clay" : "bg-ink/25"}`}
+                className={`h-px flex-1 transition-colors duration-300 ${i < index ? "bg-smoke" : "bg-ink/25"}`}
               />
               <span
                 className={`border-y-[4px] border-l-[6px] border-y-transparent transition-colors duration-300 ${
-                  i < index ? "border-l-clay" : "border-l-ink/40"
+                  i < index ? "border-l-smoke" : "border-l-ink/40"
                 }`}
               />
             </span>
@@ -103,13 +103,15 @@ export function Carousel({
             <span
               className={`block h-[3px] rounded-full transition-colors duration-300 ${
                 i === index
-                  ? "bg-clay"
+                  ? dark
+                    ? "bg-white"
+                    : "bg-ink"
                   : i < index
                     ? dark
-                      ? "bg-sand/45"
+                      ? "bg-mist/45"
                       : "bg-ink/40"
                     : dark
-                      ? "bg-sand/15"
+                      ? "bg-mist/15"
                       : "bg-ink/15"
               }`}
             />
@@ -117,7 +119,7 @@ export function Carousel({
         ))}
       </div>
       <span
-        className={`font-mono text-xs tabular-nums ${dark ? "text-muted-dark" : "text-muted"}`}
+        className={`font-mono text-xs tabular-nums ${dark ? "text-silver" : "text-smoke"}`}
         aria-live="polite"
       >
         {pad(index + 1)} / {pad(count)}

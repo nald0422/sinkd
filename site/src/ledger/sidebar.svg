@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 250"><title>A prize ad</title>
+<rect width="300" height="250" fill="#ff5a1f"/><circle cx="240" cy="60" r="70" fill="#ffd400"/>
+<text x="24" y="70" font-family="Arial Black,Arial" font-size="30" font-weight="900" fill="#fff">YOU WON!</text>
+<text x="24" y="108" font-family="Arial" font-size="19" fill="#fff">Claim your free cruise</text>
+<text x="24" y="134" font-family="Arial" font-size="19" fill="#fff">before the timer runs out</text>
+<rect x="24" y="170" width="160" height="48" rx="8" fill="#1d1d1d"/>
+<text x="104" y="201" font-family="Arial" font-size="19" font-weight="700" text-anchor="middle" fill="#ffd400">CLAIM NOW</text></svg>
