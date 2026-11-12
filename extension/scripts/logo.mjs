@@ -13,7 +13,10 @@
 //   logo.svg, logo-small.svg    vector masters (the small one for 32 px; 16 px
 //                               is drawn pixel by pixel)
 //   store-icon-128.png          Chrome Web Store icon: 96 px of artwork in
-//                               a transparent 128 px square, as the store asks
+//                               a transparent 128 px square, as the store asks;
+//                               the tile lit from above, with a hairline edge
+//                               and a soft shadow, so it holds on the store's
+//                               light and dark pages
 //   icon16/32/48/128.png        toolbar and extension-page icons
 //   wordmark.png                mark and name, on a transparent background
 //
@@ -97,6 +100,27 @@ function mark16({ tile, line, dot }) {
   );
 }
 
+/**
+ * The store's icon: the mark on a tile lit from above, with a hairline edge
+ * (light on the dark tile, dark on the light one) and a soft shadow, so a
+ * dark tile doesn't sink into the store's dark page or a light one into its
+ * light page.
+ */
+function storeMark(colors) {
+  const dark = colors.tile === INK;
+  const top = dark ? "#2C2C2C" : WHITE;
+  const edge = dark ? "rgba(255,255,255,0.16)" : "rgba(22,22,22,0.12)";
+  return (
+    `<defs><linearGradient id="lit" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${colors.tile}"/></linearGradient>` +
+    `<filter id="lift" x="-20%" y="-20%" width="140%" height="140%">` +
+    `<feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#000" flood-opacity="0.3"/></filter></defs>` +
+    `<rect width="128" height="128" rx="28" fill="url(#lit)" filter="url(#lift)"/>` +
+    `<rect x="0.75" y="0.75" width="126.5" height="126.5" rx="27.25" fill="none" stroke="${edge}" stroke-width="1.5"/>` +
+    mark({ ...colors, tile: "none" })
+  );
+}
+
 const svg = (body, size, viewBox = "0 0 128 128") =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${viewBox}">${body}</svg>`;
 
@@ -123,7 +147,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const size of [48, 128]) {
       await shoot(svg(mark(colors), size), size, size, `icon${size}.png`);
     }
-    await shoot(svg(mark(colors), 128, "-16 -16 160 160"), 128, 128, "store-icon-128.png");
+    await shoot(svg(storeMark(colors), 128, "-16 -16 160 160"), 128, 128, "store-icon-128.png");
     await shoot(
       `<div style="display:flex;align-items:center;gap:30px;padding:24px 44px 24px 24px;width:max-content">
         ${svg(mark(colors), 128)}

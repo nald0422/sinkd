@@ -1,11 +1,15 @@
-// Store images, into ../release/, in the brand's colors (scripts/logo.mjs):
+// Store images, into ../release/, in the brand's colors (scripts/logo.mjs).
+// The store's are dark, as stores show them best: the mark's contour lines
+// spread out behind the product from a clay low point, a headline at the
+// top, the name at the bottom left.
 //
-//   screenshot-1-overview.png      the popup, and what sinkd does
+//   screenshot-1-overview.png      the popup over the page, and what sinkd does
 //   screenshot-2-before-after.png  a page without and with the extension
-//   screenshot-3-controls.png      the popup's per-site switches, close up
-//   screenshot-4-privacy.png       links, cookies, referrer, fingerprints
+//   screenshot-3-live-log.png      the popup's live log, on that page
+//   screenshot-4-privacy.png       links, cookies, fingerprints, GPC, WebRTC
 //   screenshot-5-every-app.png     the sinkd command, for every app
 //   promo-440x280.png              the small promo tile
+//   marquee-1400x560.png           the marquee promo tile
 //   og-1200x630.png                the link preview image, for the website
 //   page-before.png, page-after.png  the before/after captures (the website builds
 //                                    the page itself: site/src/components/PageSweep.tsx)
@@ -18,16 +22,18 @@
 // EasyList hides (not ones the compiler leaves out as detector bait), once
 // in a browser without
 // the extension and once with the build in --extension. The popup's tab
-// lookup is stubbed to report that site.
+// lookup is stubbed to report that site. For the log, a copy of the build
+// gets declarativeNetRequestFeedback, so the popup can read a tab it
+// wasn't opened from; the store build doesn't have it and doesn't need it.
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright-core";
 
-import { INK, MIST, mark, SILVER, SMOKE, SNOW, VARIANTS, WHITE } from "./logo.mjs";
+import { CLAY, INK, MIST, mark, SILVER, SMOKE, SNOW, VARIANTS, WHITE } from "./logo.mjs";
 
 /** VS Code's Dark+ terminal, as the popup's log console has it. */
 const TERM = { bg: "#1E1E1E", bar: "#323233", dot: "#5A5A5A", text: "#D4D4D4", red: "#F14C4C" };
@@ -135,6 +141,13 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>The Ledger
       <ol><li>The quiet return of the night train</li><li>What a warmer winter means for maple syrup</li><li>Inside the library that lends out tools</li></ol>
     </aside>
   </main>
+  <script src="http://www.googletagmanager.com/gtm.js?id=GTM-LEDGER"></script>
+  <script src="http://www.google-analytics.com/analytics.js"></script>
+  <script src="http://securepubads.g.doubleclick.net/tag/js/gpt.js"></script>
+  <script src="http://cdn.segment.com/analytics.js/v1/ledger/analytics.min.js"></script>
+  <img src="http://www.facebook.com/tr?id=1&amp;ev=PageView" alt="" width="1" height="1" style="position:absolute;left:-9px">
+  <img src="http://bat.bing.com/action/0?ti=1" alt="" width="1" height="1" style="position:absolute;left:-9px">
+  <iframe src="/newsletter?utm_source=newsletter&amp;utm_campaign=fall&amp;fbclid=IwAR2x9" title="" style="display:none"></iframe>
 </body></html>`;
 
 function serve() {
@@ -147,6 +160,8 @@ function serve() {
     };
     if (host === "ad.doubleclick.net" && ADS[path]) return send("image/svg+xml", ADS[path]);
     if (host === SITE && path === "/hero.svg") return send("image/svg+xml", HERO);
+    if (host === SITE && path === "/newsletter")
+      return send("text/html; charset=utf-8", "<!doctype html><title>Newsletter</title>");
     if (host === SITE) return send("text/html; charset=utf-8", PAGE);
     res.writeHead(204);
     res.end();
@@ -161,14 +176,14 @@ const logo = (variant, size) =>
 
 const png = (buffer) => `data:image/png;base64,${buffer.toString("base64")}`;
 
-/** A browser window around a page screenshot. */
-const browserWindow = (src, width, address) => `
-  <div style="width:${width}px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 22px 60px rgba(22,22,22,.18)">
+/** A browser window around a page screenshot; `height` shows only the top of the page. */
+const browserWindow = (src, width, address, height) => `
+  <div style="width:${width}px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 30px 80px rgba(0,0,0,.55)">
     <div style="height:38px;background:${MIST};display:flex;align-items:center;gap:8px;padding:0 14px">
       ${[1, 2, 3].map(() => `<span style="width:11px;height:11px;border-radius:50%;background:${SILVER}"></span>`).join("")}
       <span style="margin-left:14px;flex:1;height:24px;border-radius:7px;background:${SNOW};font:13px -apple-system,system-ui;color:${SMOKE};display:flex;align-items:center;padding:0 12px">${address}</span>
     </div>
-    <img src="${src}" style="display:block;width:${width}px">
+    <div style="${height ? `height:${height}px;overflow:hidden` : ""}"><img src="${src}" style="display:block;width:${width}px"></div>
   </div>`;
 
 const STYLE = (bg, ink, accent) => `
@@ -185,24 +200,101 @@ const STYLE = (bg, ink, accent) => `
   .label { font: 600 14px -apple-system, system-ui; letter-spacing: .06em; text-transform: uppercase; color: ${MUTED}; }
   .card { background: #fff; border-radius: 14px; padding: 26px 28px; box-shadow: 0 10px 30px rgba(22,22,22,.08); }`;
 
-/** The title block shared by the feature screenshots. */
-const title = (heading, text) => `
-  <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">${logo("graphite", 40)}
-    <span style="font:500 22px -apple-system,system-ui;letter-spacing:-.01em">sinkd</span></div>
-  <h1 style="font-size:44px;line-height:1.12">${heading}</h1>
-  <p class="muted" style="font-size:21px;line-height:1.5;margin:18px 0 0">${text}</p>`;
+// ------------------------------------------------------------ the store look
+
+/** The darks of the store images. */
+const NIGHT = {
+  rest: "#8F8F8F",
+  text: "#E6E6E6",
+  card: "rgba(28,28,28,0.88)",
+  edge: "rgba(255,255,255,0.10)",
+};
+/** Single-quoted names: it goes inside style attributes. */
+const FONT = "-apple-system, 'SF Pro Display', system-ui, 'Segoe UI', sans-serif";
+
+/** The mark without its tile: white contours and the clay low point. */
+const bare = (size) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 128 128">${mark({ tile: "none", line: WHITE, dot: CLAY })}</svg>`;
+
+/**
+ * Contour lines spreading out from a low point at (x, y), as the mark
+ * draws them (each ring's floor a little below the last, so they crowd on
+ * one side), fading with distance, and the clay glow of the low point.
+ */
+function contours(width, height, x, y, { rings = 12, opacity = 0.12, glow = 230 } = {}) {
+  let lines = "";
+  for (let k = 0; k < rings; k++) {
+    const r = 54 + k * 58 + k * k * 4;
+    const floor = y + 16 + k * 10;
+    const o = (opacity * (1 - k / (rings + 3))).toFixed(3);
+    lines += `<circle cx="${x}" cy="${floor - r}" r="${r}" fill="none" stroke="#fff" stroke-opacity="${o}" stroke-width="1.4"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="position:absolute;inset:0">
+    <defs><radialGradient id="glow"><stop offset="0" stop-color="${CLAY}" stop-opacity="0.45"/><stop offset="1" stop-color="${CLAY}" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="${x}" cy="${y}" r="${glow}" fill="url(#glow)"/>${lines}
+    <circle cx="${x}" cy="${y}" r="7" fill="${CLAY}"/></svg>`;
+}
+
+/** A store image: the backdrop around the low point, the content, and the name at the bottom left. */
+const stage = (width, height, [x, y], body, { brand = true, ...backdrop } = {}) => `
+  <div style="position:relative;width:${width}px;height:${height}px;overflow:hidden;
+    background:radial-gradient(circle at ${x}px ${y}px, #2B2B2B 0, #181818 40%, #0D0D0D 100%)">
+    ${contours(width, height, x, y, backdrop)}
+    <div style="position:absolute;inset:0">${body}</div>
+    ${
+      brand
+        ? `<div style="position:absolute;left:72px;bottom:52px;display:flex;align-items:center;gap:12px">${bare(42)}
+      <span style="font:600 28px/1 ${FONT};letter-spacing:-.015em">sinkd</span></div>`
+        : ""
+    }
+  </div>`;
+
+/** A headline, its second part in gray, as the website sets them. */
+const headline = (lead, rest, size = 56) =>
+  `<h1 style="font:600 ${size}px/1.08 ${FONT};letter-spacing:-.028em;margin:0;text-wrap:balance">${lead}${rest ? ` <span style="color:${NIGHT.rest}">${rest}</span>` : ""}</h1>`;
+const lede = (text, width = 480) =>
+  `<p style="font:21px/1.5 ${FONT};color:${NIGHT.rest};margin:22px 0 0;max-width:${width}px">${text}</p>`;
+
+/** A card floating over the product. */
+const chip = (title, text) => `
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:14px 20px 15px 16px;border-radius:16px;
+    background:${NIGHT.card};box-shadow:0 0 0 1px ${NIGHT.edge},0 18px 44px rgba(0,0,0,.5);backdrop-filter:blur(12px)">
+    <span style="flex:none;width:10px;height:10px;border-radius:50%;background:${CLAY};margin-top:7px"></span>
+    <span><b style="display:block;font:600 18px/1.3 ${FONT}">${title}</b>
+      <span style="font:15px/1.35 ${FONT};color:${NIGHT.rest}">${text}</span></span>
+  </div>`;
+
+/** A small label over a window. */
+const tag = (text, on) =>
+  `<span style="display:inline-block;margin:0 0 14px 2px;padding:7px 13px;border-radius:999px;font:600 13px/1 ${FONT};letter-spacing:.08em;text-transform:uppercase;${on ? `background:${WHITE};color:${INK}` : `background:${NIGHT.card};color:${NIGHT.text};box-shadow:0 0 0 1px ${NIGHT.edge}`}">${text}</span>`;
+
+/** Product shots: lifted off the backdrop, and turned a little toward the headline. */
+const LIFT = "box-shadow:0 0 0 1px rgba(255,255,255,.08),0 34px 90px rgba(0,0,0,.6)";
+const TURN = "transform:perspective(1800px) rotateY(-13deg) rotateX(4deg)";
+
+const DARK_STYLE = `
+  * { box-sizing: border-box; }
+  body { margin: 0; overflow: hidden; background: #0D0D0D; color: ${WHITE};
+    font-family: ${FONT}; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "SF Mono", Menlo, ui-monospace, monospace; }`;
 
 const server = await serve();
 const { port } = server.address();
 const resolverRule = `--host-resolver-rules=MAP *:80 127.0.0.1:${port}`;
 const profile = mkdtempSync(join(tmpdir(), "sinkd-images-"));
+const loaded = mkdtempSync(join(tmpdir(), "sinkd-images-extension-"));
+cpSync(extension, loaded, { recursive: true });
+const manifestFile = join(loaded, "manifest.json");
+const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+manifest.permissions = [...new Set([...manifest.permissions, "declarativeNetRequestFeedback"])];
+writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
 const withExtension = await chromium.launchPersistentContext(profile, {
   channel: "chromium",
   headless: true,
   deviceScaleFactor: 2,
   // The popup as it is once open, without its splash.
   reducedMotion: "reduce",
-  args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, resolverRule],
+  args: [`--disable-extensions-except=${loaded}`, `--load-extension=${loaded}`, resolverRule],
 });
 const plain = await chromium.launch({ channel: "chromium", headless: true, args: [resolverRule] });
 try {
@@ -226,7 +318,7 @@ try {
   const popupHeight = await popup.evaluate(() => document.body.scrollHeight);
   await popup.setViewportSize({ width: 340, height: popupHeight });
   const popupFull = await popup.screenshot();
-  const popupTop = await popup.screenshot({ clip: { x: 0, y: 0, width: 340, height: 470 } });
+  const popupTop = await popup.screenshot({ clip: { x: 0, y: 0, width: 340, height: 600 } });
 
   // The page, without and with the extension.
   const shootPage = async (context) => {
@@ -244,15 +336,37 @@ try {
   writeFileSync(join(release, "page-before.png"), before);
   writeFileSync(join(release, "page-after.png"), after);
 
+  // The popup's log, on that page: opened on it, then the page reloaded,
+  // so each request shows as it happens, with its address.
+  const reader = await withExtension.newPage();
+  await reader.setViewportSize({ width: 1000, height: 1010 });
+  await reader.goto(`http://${SITE}/climate/tides`);
+  await reader.waitForLoadState("networkidle");
+  const tabId = await worker.evaluate(
+    async (site) => (await chrome.tabs.query({ url: `http://${site}/*` }))[0]?.id,
+    SITE,
+  );
+  const logView = await withExtension.newPage();
+  await logView.addInitScript(
+    ([tab, site]) => {
+      chrome.tabs.query = async () => [{ id: tab, url: `http://${site}/climate/tides` }];
+    },
+    [tabId, SITE],
+  );
+  await logView.setViewportSize({ width: 340, height: 600 });
+  await logView.goto(`chrome-extension://${id}/popup.html`);
+  await logView.click("#tab-log");
+  await logView.waitForTimeout(800);
+  await reader.reload();
+  await reader.waitForLoadState("networkidle");
+  await logView.waitForTimeout(1500);
+  const popupLog = await logView.screenshot();
+
   const page = await withExtension.newPage();
-  const render = async (
-    body,
-    file,
-    { bg = SNOW, ink = INK, accent = SMOKE, width = 1280, height = 800 } = {},
-  ) => {
+  const render = async (body, file, { width = 1280, height = 800, style = DARK_STYLE } = {}) => {
     await page.setViewportSize({ width, height });
     await page.setContent(
-      `<!doctype html><html><head><style>${STYLE(bg, ink, accent)} body { width:${width}px; height:${height}px; }</style></head><body>${body}</body></html>`,
+      `<!doctype html><html><head><style>${style} body { width:${width}px; height:${height}px; }</style></head><body>${body}</body></html>`,
     );
     // At CSS size: the stores want exactly these dimensions. Captures
     // inside were taken at 2x, so they stay sharp.
@@ -260,93 +374,86 @@ try {
   };
 
   await render(
-    `<div style="display:flex;align-items:center;gap:72px;padding:0 96px;height:100%">
-      <div style="flex:1">
-        <h1 style="font-size:64px;display:flex;align-items:center;gap:22px">${logo("graphite", 76)}sinkd</h1>
-        <p class="muted" style="font-size:26px;margin:22px 0 40px">Ad and tracker blocking that <span class="accent">blends in</span>.</p>
-        <ul style="font-size:22px;line-height:1.5;display:grid;gap:14px">
-          <li>Blocks ads, trackers and malware sites</li>
-          <li>Strips tracking parameters, tracker cookies and referrers</li>
-          <li>Fingerprinting noise that stays stable per site</li>
-          <li>Global Privacy Control, WebRTC IP protection</li>
-          <li>Each protection off per site, in one click</li>
-        </ul>
-        <p class="muted" style="font-size:18px;margin-top:40px">No remote code. No data collected.</p>
+    stage(
+      1280,
+      800,
+      [930, 560],
+      `<div style="position:absolute;left:72px;top:150px;width:400px">
+        ${headline("Blocks ads<br>and trackers.", "<br>Blends in.", 64)}
+        ${lede("Strips tracking from links and cookies, and gives every site a different fingerprint. No account, nothing collected.", 380)}
       </div>
-      <img src="${png(popupFull)}" style="height:700px;border-radius:12px;box-shadow:0 18px 50px rgba(22,22,22,.16)">
-    </div>`,
+      <img src="${png(popupFull)}" style="position:absolute;right:112px;top:58px;width:380px;border-radius:14px;${LIFT};${TURN}">
+      <div style="position:absolute;left:478px;top:190px;width:300px">${chip("Ads and trackers", "Blocked before they load")}</div>
+      <div style="position:absolute;left:512px;top:404px;width:300px">${chip("Tracking in links", "Stripped from every address")}</div>
+      <div style="position:absolute;left:482px;top:616px;width:300px">${chip("Your fingerprint", "Different on every site")}</div>`,
+    ),
     "screenshot-1-overview.png",
   );
 
   await render(
-    `<div style="padding:44px 72px 0">
-      <h1 style="font-size:40px">Ads gone. <span class="accent">The page stays whole.</span></h1>
-      <p class="muted" style="font-size:19px;margin:10px 0 0">Ad slots disappear and the layout closes up, instead of leaving holes.</p>
-    </div>
-    <div style="display:flex;gap:40px;padding:26px 72px 0">
-      ${[
-        ["Without sinkd", before],
-        ["With sinkd", after],
-      ]
-        .map(
-          ([label, shot]) => `<div>
-            <div class="label" style="margin:0 0 12px 4px">${label}</div>
-            ${browserWindow(png(shot), 548, SITE)}</div>`,
-        )
-        .join("")}
-    </div>`,
+    stage(
+      1280,
+      800,
+      [660, 780],
+      `<div style="position:absolute;left:72px;top:64px">
+        ${headline("Ads gone.", "The page stays whole.")}
+        ${lede("Ad slots disappear and the layout closes up, instead of leaving holes.", 900)}
+      </div>
+      <div style="position:absolute;left:72px;top:262px;opacity:.62;transform:rotate(-1.5deg);transform-origin:top left">
+        ${tag("Without sinkd")}${browserWindow(png(before), 500, SITE, 330)}</div>
+      <div style="position:absolute;left:600px;top:226px">
+        ${tag("With sinkd", true)}${browserWindow(png(after), 608, SITE, 410)}</div>`,
+    ),
     "screenshot-2-before-after.png",
   );
 
   await render(
-    `<div style="display:flex;align-items:center;gap:80px;padding:0 96px;height:100%">
-      <div style="flex:1">${title(
-        "In control, <span class='accent'>site by site</span>",
-        "Switch sinkd off for one site, or just one protection there. Your choice is remembered, and nothing else changes.",
-      )}
-        <ul style="font-size:20px;line-height:1.5;display:grid;gap:12px;margin-top:34px">
-          <li>One switch for the whole site</li>
-          <li>Or fingerprinting, cookies, referrer, GPC on their own</li>
-          <li>Kinds of blocking on or off everywhere</li>
-        </ul>
+    stage(
+      1280,
+      800,
+      [900, 470],
+      `<div style="position:absolute;left:72px;top:170px;width:500px">
+        ${headline("See what it blocks,", "<br>as it happens.")}
+        ${lede("The Log tab lists every block, stand-in, cleaned link and header change on the page, live. It adds up to the count on the toolbar.")}
       </div>
-      <img src="${png(popupTop)}" style="width:498px;border-radius:14px;box-shadow:0 22px 60px rgba(22,22,22,.18)">
-    </div>`,
-    "screenshot-3-controls.png",
+      <img src="${png(popupLog)}" style="position:absolute;right:150px;top:70px;width:392px;border-radius:14px;${LIFT};${TURN}">`,
+    ),
+    "screenshot-3-live-log.png",
   );
 
-  const strike = (s) =>
-    `<span style="text-decoration:line-through;text-decoration-color:${INK};text-decoration-thickness:2px;color:${SMOKE}">${s}</span>`;
+  const strike = (text) =>
+    `<span style="text-decoration:line-through;text-decoration-color:${CLAY};text-decoration-thickness:2px;color:${NIGHT.rest}">${text}</span>`;
+  const card = (label, body, extra = "") => `
+    <div style="padding:22px 26px;border-radius:18px;background:${NIGHT.card};box-shadow:0 0 0 1px ${NIGHT.edge};${extra}">
+      <div style="font:600 13px/1 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:${NIGHT.rest}">${label}</div>
+      ${body}
+    </div>`;
+  const text = (s) =>
+    `<p style="font:18px/1.5 ${FONT};color:${NIGHT.text};margin:12px 0 0">${s}</p>`;
+  const code = (s) =>
+    `<div class="mono" style="font-size:15px;color:${SILVER};margin-top:10px">${s}</div>`;
   await render(
-    `<div style="padding:40px 72px 0">${title(
-      "Less to track you with",
-      "Beyond blocking: what still loads carries less about you.",
-    )}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:26px 72px 0">
-      <div class="card" style="grid-column:1 / span 2;padding:22px 28px">
-        <div class="label">Tracking parameters, removed from links</div>
-        <div class="mono" style="font-size:18px;margin-top:12px;line-height:1.7">shop.example/boots?id=42${strike("&amp;utm_source=newsletter&amp;utm_campaign=fall&amp;fbclid=IwAR2x9")}</div>
-        <div class="mono" style="font-size:18px;line-height:1.7">→ shop.example/boots?id=42</div>
+    stage(
+      1280,
+      800,
+      [1120, 760],
+      `<div style="position:absolute;left:72px;top:64px">
+        ${headline("Less to track you with.", "Beyond blocking.")}
+        ${lede("What still loads carries less about you.", 900)}
       </div>
-      <div class="card" style="padding:22px 28px">
-        <div class="label">Cookies and referrer</div>
-        <p style="font-size:18px;line-height:1.5;margin:10px 0 0">Requests to trackers go out without your cookies or the page you came from. Analytics cookies expire within a week.</p>
-      </div>
-      <div class="card" style="padding:22px 28px">
-        <div class="label">A fingerprint per site</div>
-        <p style="font-size:18px;line-height:1.5;margin:10px 0 8px">Each site sees its own canvas, WebGL and audio fingerprint, stable for the session, so visits can't be linked.</p>
-        <div class="mono" style="font-size:15px;color:${MUTED}">news.example → 9f3a…c1 &nbsp;·&nbsp; shop.example → 47d0…8e</div>
-      </div>
-      <div class="card" style="padding:22px 28px">
-        <div class="label">Global Privacy Control</div>
-        <p style="font-size:18px;line-height:1.5;margin:10px 0 8px">Every site is told not to sell or share your data, a legally recognized opt-out in several US states.</p>
-        <div class="mono" style="font-size:15px;color:${MUTED}">Sec-GPC: 1</div>
-      </div>
-      <div class="card" style="padding:22px 28px">
-        <div class="label">Your local address, kept local</div>
-        <p style="font-size:18px;line-height:1.5;margin:10px 0 0">WebRTC uses only the public network interface, so pages can't read your device's local IP address.</p>
-      </div>
-    </div>`,
+      <div style="position:absolute;left:72px;right:72px;top:236px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        ${card(
+          "Tracking parameters, removed from links",
+          `<div class="mono" style="font-size:17px;line-height:1.7;margin-top:12px;color:${NIGHT.text};white-space:nowrap">shop.example/boots?id=42${strike("&amp;utm_source=news&amp;fbclid=IwAR2x9")}</div>
+          <div class="mono" style="font-size:17px;line-height:1.7;color:${WHITE};white-space:nowrap">→ shop.example/boots?id=42</div>`,
+          "grid-column:span 2",
+        )}
+        ${card("Your local address, kept local", text("WebRTC uses only the public network interface, so pages can't read your local IP address."))}
+        ${card("Cookies and referrer", text("Requests to trackers go out without your cookies or the page you came from. Analytics cookies expire within a week."))}
+        ${card("A fingerprint per site", text("Each site sees its own canvas, WebGL and audio fingerprint, stable for the session.") + code("news.example → 9f3a…c1"))}
+        ${card("Global Privacy Control", text("Every site is told not to sell or share your data, a legal opt-out in several US states.") + code("Sec-GPC: 1"))}
+      </div>`,
+    ),
     "screenshot-4-privacy.png",
   );
 
@@ -355,37 +462,66 @@ try {
     .replace(/^(\$ .*)$/gm, `<span style="color:${WHITE}">$1</span>`)
     .replace(/BLOCKED/g, `<span style="color:${TERM.red}">BLOCKED</span>`);
   await render(
-    `<div style="display:flex;align-items:center;gap:48px;padding:0 64px;height:100%">
-      <div style="width:380px">${title(
-        "Every app, <span class='accent'>not just the browser</span>",
-        "The free sinkd program for macOS and Linux blocks the same trackers for your whole computer, as its DNS resolver. Its allowlist and pause reach the extension too.",
-      )}</div>
-      <div style="flex:1;border-radius:12px;overflow:hidden;box-shadow:0 22px 60px rgba(22,22,22,.25)">
+    stage(
+      1280,
+      800,
+      [960, 640],
+      `<div style="position:absolute;left:72px;top:170px;width:400px">
+        ${headline("Every app,", "<br>not just<br>the browser.")}
+        ${lede("The free sinkd program for macOS and Linux blocks the same trackers for your whole computer, as its DNS resolver.", 400)}
+      </div>
+      <div style="position:absolute;left:510px;top:118px;width:700px;border-radius:12px;overflow:hidden;${LIFT}">
         <div style="height:34px;background:${TERM.bar};display:flex;align-items:center;gap:8px;padding:0 14px">
           ${[1, 2, 3].map(() => `<span style="width:11px;height:11px;border-radius:50%;background:${TERM.dot}"></span>`).join("")}
         </div>
-        <pre class="mono" style="margin:0;background:${TERM.bg};color:${TERM.text};font-size:13.8px;line-height:1.55;padding:22px 24px;white-space:pre">${terminal}</pre>
-      </div>
-    </div>`,
+        <pre class="mono" style="margin:0;background:${TERM.bg};color:${TERM.text};font-size:13.6px;line-height:1.55;padding:22px 24px;white-space:pre">${terminal}</pre>
+      </div>`,
+    ),
     "screenshot-5-every-app.png",
   );
 
   await render(
-    `<div style="display:flex;flex-direction:column;justify-content:center;height:100%;padding:0 36px">
-      <h1 style="font-size:54px;display:flex;align-items:center;gap:16px">${logo("paper", 64)}sinkd</h1>
-      <p style="font-size:21px;margin:16px 0 0;line-height:1.35;color:${SILVER}">Blocks ads and trackers.<br>
-        <span class="accent">Blends in.</span></p>
-    </div>`,
+    stage(
+      440,
+      280,
+      [372, 236],
+      `<div style="position:absolute;left:34px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center">
+        <div style="display:flex;align-items:center;gap:14px">${bare(62)}
+          <span style="font:600 54px/1 ${FONT};letter-spacing:-.025em">sinkd</span></div>
+        <p style="font:19px/1.35 ${FONT};color:${SILVER};margin:18px 0 0">Ad and tracker blocking<br>that blends in.</p>
+      </div>`,
+      { brand: false, rings: 8, glow: 140 },
+    ),
     "promo-440x280.png",
-    { bg: INK, ink: WHITE, accent: WHITE, width: 440, height: 280 },
+    { width: 440, height: 280 },
   );
+
+  await render(
+    stage(
+      1400,
+      560,
+      [1010, 470],
+      `<div style="position:absolute;left:84px;top:0;bottom:0;width:600px;display:flex;flex-direction:column;justify-content:center">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:34px">${bare(50)}
+          <span style="font:600 36px/1 ${FONT};letter-spacing:-.02em">sinkd</span></div>
+        ${headline("Ad and tracker blocking", "that blends in.", 60)}
+        ${lede("Blocks ads, trackers and malware sites, strips tracking, and blurs your fingerprint. In Chrome, and for every app on your computer.", 560)}
+      </div>
+      <div style="position:absolute;left:760px;top:84px">${browserWindow(png(after), 520, SITE, 440)}</div>
+      <img src="${png(popupTop)}" style="position:absolute;right:76px;top:42px;width:290px;border-radius:12px;${LIFT};${TURN}">`,
+      { brand: false },
+    ),
+    "marquee-1400x560.png",
+    { width: 1400, height: 560 },
+  );
+
   await render(
     `<div style="display:flex;flex-direction:column;justify-content:center;height:100%;padding:0 96px">
       <h1 style="font-size:84px;display:flex;align-items:center;gap:28px">${logo("graphite", 104)}sinkd</h1>
       <p class="muted" style="font-size:34px;margin:26px 0 0">Ad and tracker blocking that <span class="accent">blends in</span>.</p>
     </div>`,
     "og-1200x630.png",
-    { width: 1200, height: 630 },
+    { width: 1200, height: 630, style: STYLE(SNOW, INK, SMOKE) },
   );
   console.log(`wrote the store images and the website's images to ${release}`);
 } finally {
@@ -393,4 +529,5 @@ try {
   await plain.close();
   server.close();
   rmSync(profile, { recursive: true, force: true });
+  rmSync(loaded, { recursive: true, force: true });
 }
