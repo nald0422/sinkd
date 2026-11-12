@@ -69,20 +69,20 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/overview.png" alt="The sinkd popup on a news site, beside what sinkd does: blocks ads and trackers, strips tracking, adds fingerprint protection."></td>
-    <td width="50%"><img src="docs/images/controls.png" alt="The popup's per-site switches: on for this site, fingerprinting, tracking cookies, referrer, Global Privacy Control."></td>
+    <td width="50%"><img src="docs/images/overview.png" alt="Blocks ads and trackers. Blends in. The sinkd popup on a news site, with its switches for the site and for each kind of blocking, and three cards: ads and trackers blocked before they load, tracking stripped from links, a different fingerprint on every site."></td>
+    <td width="50%"><img src="docs/images/live-log.png" alt="See what it blocks, as it happens. The popup's Log tab on a news site: 14 actions, with blocks of ad and tracker requests, stand-ins for Google Tag Manager and Analytics, a link cleaned of three tracking parameters, and Global Privacy Control headers."></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>A quiet popup.</b> What sinkd is doing on this site, at a glance.</sub></td>
-    <td align="center"><sub><b>In control, site by site.</b> Switch sinkd, or one protection, off where you need to.</sub></td>
+    <td align="center"><sub><b>Blocks ads and trackers. Blends in.</b> Switch it off for one site, or one protection, in a click.</sub></td>
+    <td align="center"><sub><b>See what it blocks, as it happens.</b> The Log tab lists every block, stand-in, cleaned link and header change.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/privacy.png" alt="Privacy features: clean links, cookies kept from trackers, a fingerprint per site, Global Privacy Control."></td>
-    <td width="50%"><img src="docs/images/every-app.png" alt="The sinkd command in a terminal, showing which list blocks ad.doubleclick.net in the resolver and in the extension."></td>
+    <td width="50%"><img src="docs/images/privacy.png" alt="Less to track you with. Cards for tracking parameters removed from links, your local address kept local, cookies and referrer kept from trackers, a fingerprint per site, and Global Privacy Control."></td>
+    <td width="50%"><img src="docs/images/every-app.png" alt="Every app, not just the browser. The sinkd command in a terminal, showing which list blocks ad.doubleclick.net and googletagmanager.com in the resolver and in the extension."></td>
   </tr>
   <tr>
     <td align="center"><sub><b>Less to track you with.</b> Clean links, no tracker cookies, a different fingerprint on every site.</sub></td>
-    <td align="center"><sub><b>Every app, explained.</b> <code>sinkd check</code> names the exact rule behind every block.</sub></td>
+    <td align="center"><sub><b>Every app, not just the browser.</b> <code>sinkd check</code> names the exact rule behind every block.</sub></td>
   </tr>
 </table>
 
