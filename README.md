@@ -69,16 +69,22 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/overview.png" alt="Blocks ads and trackers. Blends in. The sinkd popup on a news site, with its switches for the site and for each kind of blocking, and three cards: ads and trackers blocked before they load, tracking stripped from links, a different fingerprint on every site."></td>
-    <td width="50%"><img src="docs/images/live-log.png" alt="See what it blocks, as it happens. The popup's Log tab on a news site: 14 actions, with blocks of ad and tracker requests, stand-ins for Google Tag Manager and Analytics, a link cleaned of three tracking parameters, and Global Privacy Control headers."></td>
+    <td colspan="2"><img src="docs/images/screenshot-1-overview.png" alt="Blocks ads and trackers. Blends in. The sinkd popup on a news site, with its switches for the site and for each kind of blocking, and three cards: ads and trackers blocked before they load, tracking stripped from links, a different fingerprint on every site."></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Blocks ads and trackers. Blends in.</b> Switch it off for one site, or one protection, in a click.</sub></td>
+    <td colspan="2" align="center"><sub><b>Blocks ads and trackers. Blends in.</b> Switch it off for one site, or one protection, in a click.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/screenshot-2-before-after.png" alt="Ads gone. The page stays whole. A news page without sinkd, with a banner and a sidebar ad, and with sinkd, where the ads are gone and the page has closed up around them."></td>
+    <td width="50%"><img src="docs/images/screenshot-3-live-log.png" alt="See what it blocks, as it happens. The popup's Log tab on a news site: 14 actions, with blocks of ad and tracker requests, stand-ins for Google Tag Manager and Analytics, a link cleaned of three tracking parameters, and Global Privacy Control headers."></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Ads gone. The page stays whole.</b> Ad slots disappear and the layout closes up, instead of leaving holes.</sub></td>
     <td align="center"><sub><b>See what it blocks, as it happens.</b> The Log tab lists every block, stand-in, cleaned link and header change.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/privacy.png" alt="Less to track you with. Cards for tracking parameters removed from links, your local address kept local, cookies and referrer kept from trackers, a fingerprint per site, and Global Privacy Control."></td>
-    <td width="50%"><img src="docs/images/every-app.png" alt="Every app, not just the browser. The sinkd command in a terminal, showing which list blocks ad.doubleclick.net and googletagmanager.com in the resolver and in the extension."></td>
+    <td width="50%"><img src="docs/images/screenshot-4-privacy.png" alt="Less to track you with. Cards for tracking parameters removed from links, your local address kept local, cookies and referrer kept from trackers, a fingerprint per site, and Global Privacy Control."></td>
+    <td width="50%"><img src="docs/images/screenshot-5-every-app.png" alt="Every app, not just the browser. The sinkd command in a terminal, showing which list blocks ad.doubleclick.net and googletagmanager.com in the resolver and in the extension."></td>
   </tr>
   <tr>
     <td align="center"><sub><b>Less to track you with.</b> Clean links, no tracker cookies, a different fingerprint on every site.</sub></td>
