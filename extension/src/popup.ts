@@ -26,8 +26,11 @@ import {
   redirectLine,
   ruleKey,
   SESSION_RULESET,
+  SPLASH,
   type State,
   sameLine,
+  splashShapes,
+  splashWordmark,
 } from "./core.js";
 
 type Rule = chrome.declarativeNetRequest.Rule;
@@ -676,6 +679,139 @@ const HAS_LOG = typeof dnr.getMatchedRules === "function" && chrome.webRequest !
 const tabs = $("tab-controls").parentElement;
 if (tabs) tabs.hidden = !HAS_LOG;
 
-refresh()
+// -------------------------------------------------------------- the splash
+
+/** Every input the splash holds back while it is up, so none reaches the controls. */
+const SPLASH_INPUTS = [
+  "pointerdown",
+  "pointerup",
+  "mousedown",
+  "mouseup",
+  "click",
+  "dblclick",
+  "contextmenu",
+  "keydown",
+  "keypress",
+  "keyup",
+  "wheel",
+  "touchstart",
+  "touchmove",
+  "touchend",
+] as const;
+/** The popup's height when it last opened, so it opens at full height under the splash. */
+const HEIGHT_KEY = "sinkd:popup-height";
+const FIRST_HEIGHT = 560;
+/** The tallest a popup gets, in Chrome and in Firefox. */
+const MOST_HEIGHT = 600;
+
+/**
+ * The splash as the popup opens ("the splash" in core.ts). It plays at
+ * its own pace whatever the user does, holds every input back from the
+ * controls until it is gone, and leaves once it is whole and the controls
+ * have rendered (`ready`). Never with reduced motion.
+ */
+function splashScreen(ready: Promise<unknown>): void {
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    splash.remove();
+    return;
+  }
+  const shapes = [...splash.querySelectorAll<SVGRectElement>("rect")];
+  const word = splash.querySelector<HTMLElement>(".splash-word");
+  const draw = (t: number) => {
+    splashShapes(t).forEach((shape, i) => {
+      const rect = shapes[i];
+      if (!rect) return;
+      const { cx, cy, w, h } = shape;
+      rect.setAttribute("x", (cx - w / 2).toFixed(3));
+      rect.setAttribute("y", (cy - h / 2).toFixed(3));
+      rect.setAttribute("width", w.toFixed(3));
+      rect.setAttribute("height", h.toFixed(3));
+      rect.setAttribute("rx", shape.rx.toFixed(3));
+      rect.setAttribute(
+        "transform",
+        `rotate(${shape.rot.toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)})`,
+      );
+      if (shape.strokeWidth) rect.setAttribute("stroke-width", shape.strokeWidth.toFixed(3));
+      rect.setAttribute("opacity", shape.opacity.toFixed(3));
+    });
+    const { opacity, rise } = splashWordmark(t);
+    if (word) {
+      word.style.opacity = opacity.toFixed(3);
+      word.style.transform = `translateY(${rise.toFixed(2)}px)`;
+    }
+  };
+
+  // Open at the height the controls will take, not grow under the splash
+  // as they arrive.
+  let height = FIRST_HEIGHT;
+  try {
+    height = Number(localStorage.getItem(HEIGHT_KEY)) || FIRST_HEIGHT;
+  } catch {
+    // Storage blocked: the usual height.
+  }
+  document.body.style.minHeight = `${Math.min(MOST_HEIGHT, height)}px`;
+
+  // No click lands on a switch underneath, no key moves the focus or flips
+  // one. Escape still closes the popup, and shortcuts do what they do.
+  const take = (event: Event) => {
+    event.stopImmediatePropagation();
+    const key = event as KeyboardEvent;
+    const passes = key.key === "Escape" || key.metaKey || key.ctrlKey || key.altKey;
+    if (event.cancelable && !passes) event.preventDefault();
+  };
+  const options = { capture: true, passive: false } as const;
+  for (const type of SPLASH_INPUTS) window.addEventListener(type, take, options);
+
+  let whole = false;
+  let rendered = false;
+  let leaving = false;
+  const leave = () => {
+    if (leaving || !whole || !rendered) return;
+    leaving = true;
+    document.body.style.minHeight = "";
+    try {
+      localStorage.setItem(HEIGHT_KEY, String(document.documentElement.scrollHeight));
+    } catch {
+      // Storage blocked: next time opens at the usual height.
+    }
+    splash.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: SPLASH.fade,
+      easing: "ease-out",
+      fill: "forwards",
+    });
+    setTimeout(() => {
+      splash.remove();
+      for (const type of SPLASH_INPUTS) window.removeEventListener(type, take, options);
+    }, SPLASH.fade);
+  };
+  const settled = () => {
+    rendered = true;
+    leave();
+  };
+  ready.then(settled, settled);
+
+  // Its own clock, a frame at a time (a stall counts as one frame), so it
+  // never jumps ahead.
+  let clock = 0;
+  let last = performance.now();
+  const tick = (now: number) => {
+    clock += Math.min(50, Math.max(0, now - last));
+    last = now;
+    draw(clock);
+    if (clock < SPLASH.hold) requestAnimationFrame(tick);
+    else {
+      whole = true;
+      leave();
+    }
+  };
+  draw(0);
+  requestAnimationFrame(tick);
+}
+
+const ready = refresh();
+splashScreen(ready);
+ready
   .then(() => (HAS_LOG ? startConsole() : undefined))
   .catch((e) => console.error("sinkd popup:", e));

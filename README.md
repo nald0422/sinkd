@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/basalt/wordmark.png">
-    <img alt="sinkd" src="docs/brand/stone/wordmark.png" width="280">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/graphite/wordmark.png">
+    <img alt="sinkd" src="docs/brand/paper/wordmark.png" width="280">
   </picture>
 
   https://chromewebstore.google.com/detail/abgodfdohgofhleaaenojdpjhapecknf?utm_source=item-share-cb

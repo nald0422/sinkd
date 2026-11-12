@@ -1048,6 +1048,14 @@ Apache-2.0:
     live lines can run ahead of the badge.
   - Firefox has neither the count nor `getMatchedRules`, so its popup has
     no log.
+- **Splash:** the popup opens on the mark putting itself together (the
+  website's Absorb splash, shortened), holds it still for 0.8 s and fades:
+  about 2.7 s in all, while the controls load underneath. It runs on its
+  own clock, so clicks and keys neither speed it up nor reach the switches
+  (Escape still closes the popup). It never shows
+  with reduced motion, and CSS removes it after 7 s if the script fails. The
+  popup's last height stays in the popup's `localStorage`, so it opens at
+  full height instead of growing under the splash.
 - **Messages:** settings change only from the extension's own pages. The
   content script (M6) may ask for its own frame's cosmetic rules and
   nothing else; its messages are validated like any untrusted input,

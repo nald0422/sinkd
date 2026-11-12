@@ -1872,3 +1872,111 @@ export function closesPopup(
   }
   return best !== null && !best.allow;
 }
+
+// ------------------------------------------------------------- the splash
+//
+// The popup opens on the mark putting itself together out of the web's
+// junk, as the website's splash does, only quicker: a banner, a skyscraper
+// and a rectangle at their standard proportions, and a tracking pixel, are
+// pulled in and become the three contours and the clay low point. Then it
+// fades, and the controls (loaded meanwhile) are there. The geometry, by
+// time, is here; popup.ts draws it.
+
+/** The mark on its 128 grid, as scripts/logo.mjs draws it. */
+export const MARK = {
+  radii: [43, 31, 19],
+  cy: [62, 67, 72],
+  low: 79.5,
+  dot: 5.5,
+  stroke: 3.6,
+} as const;
+
+/** The splash's timing, in ms: it is whole at `hold`, then fades for `fade`. */
+export const SPLASH = {
+  appear: 260,
+  morphAt: 420,
+  morph: 900,
+  stagger: 110,
+  pixel: 740,
+  /** The wordmark rises in from `word`, for `wordFor`. */
+  word: 1150,
+  wordFor: 420,
+  /** Whole by about 1570 ms, then still for 0.8 s, so the mark is seen. */
+  hold: 2370,
+  fade: 360,
+} as const;
+
+/** A shape of the splash: a rectangle by its centre, size, corners and turn. */
+export interface SplashShape {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  rx: number;
+  rot: number;
+  strokeWidth: number;
+  opacity: number;
+}
+
+/** Where the frames start: a 970×90 banner, a 160×600 skyscraper, a 300×250 rectangle. */
+const SPLASH_FROM = [
+  { cx: 64, cy: 18, w: 106, h: 20, rot: -4 },
+  { cx: 109, cy: 80, w: 22, h: 72, rot: 6 },
+  { cx: 24, cy: 94, w: 38, h: 32, rot: -8 },
+] as const;
+const SPLASH_PIXEL = { cx: 90, cy: 116, size: 4.4, rot: 18 };
+
+const unit = (t: number) => Math.min(1, Math.max(0, t));
+/** From `a` to `b`; exactly `b` at the end, so the finished mark is the mark. */
+const mix = (a: number, b: number, t: number) => a * (1 - t) + b * t;
+const outCubic = (t: number) => 1 - (1 - t) ** 3;
+const inOutCubic = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+/** Past the mark and back: something coming to rest. */
+const comeToRest = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
+
+/**
+ * The splash `t` ms in: the three frames, then the pixel. Any `t` gives
+ * finite numbers (before the start is the start, after `hold` is the
+ * finished mark, anything else is the finished mark too), so a frame can
+ * never come out broken.
+ */
+export function splashShapes(t: number): SplashShape[] {
+  const time = Number.isFinite(t) ? Math.min(SPLASH.hold, Math.max(0, t)) : SPLASH.hold;
+  const appear = unit(time / SPLASH.appear);
+  const frames = SPLASH_FROM.map((from, i) => {
+    const p = unit((time - SPLASH.morphAt - i * SPLASH.stagger) / SPLASH.morph);
+    const e = comeToRest(p);
+    const r = MARK.radii[i] ?? 0;
+    return {
+      cx: mix(from.cx, 64, e),
+      cy: mix(from.cy, MARK.cy[i] ?? 0, e),
+      w: mix(from.w, 2 * r, e),
+      h: mix(from.h, 2 * r, e),
+      rx: mix(1.5, r, inOutCubic(p)),
+      rot: mix(from.rot, 0, outCubic(p)),
+      strokeWidth: mix(1.3, MARK.stroke, outCubic(p)),
+      opacity: appear,
+    };
+  });
+  const q = unit((time - SPLASH.morphAt - SPLASH_FROM.length * SPLASH.stagger) / SPLASH.pixel);
+  const e = comeToRest(q);
+  const size = mix(SPLASH_PIXEL.size, 2 * MARK.dot, e);
+  const pixel = {
+    cx: mix(SPLASH_PIXEL.cx, 64, e),
+    cy: mix(SPLASH_PIXEL.cy, MARK.low, e),
+    w: size,
+    h: size,
+    rx: mix(0, MARK.dot, inOutCubic(q)),
+    rot: mix(SPLASH_PIXEL.rot, 0, outCubic(q)),
+    strokeWidth: 0,
+    opacity: appear,
+  };
+  return [...frames, pixel];
+}
+
+/** The wordmark under the mark, `t` ms in: it rises into place as the mark finishes. */
+export function splashWordmark(t: number): { opacity: number; rise: number } {
+  const time = Number.isFinite(t) ? t : SPLASH.hold;
+  const p = outCubic(unit((time - SPLASH.word) / SPLASH.wordFor));
+  return { opacity: p, rise: 6 * (1 - p) };
+}

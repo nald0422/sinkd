@@ -6,9 +6,18 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+  <div id="splash" class="splash" aria-hidden="true">
+    <svg viewBox="0 0 128 128" width="104" height="104">
+      <rect class="frame" opacity="0"/><rect class="frame" opacity="0"/><rect class="frame" opacity="0"/><rect class="pixel" opacity="0"/>
+    </svg>
+    <p class="splash-word">sinkd</p>
+  </div>
   <header class="top">
     <div class="brand">
-      <img src="icons/icon32.png" alt="" width="28" height="28">
+      <picture>
+        <source srcset="icons/paper32.png" media="(prefers-color-scheme: dark)">
+        <img src="icons/icon32.png" alt="" width="28" height="28">
+      </picture>
       <div>
         <h1>sinkd</h1>
         <p id="site" class="muted"></p>

@@ -7,7 +7,8 @@
 //   screenshot-5-every-app.png     the sinkd command, for every app
 //   promo-440x280.png              the small promo tile
 //   og-1200x630.png                the link preview image, for the website
-//   page-before.png, page-after.png  the before/after captures, for the website
+//   page-before.png, page-after.png  the before/after captures (the website builds
+//                                    the page itself: site/src/components/PageSweep.tsx)
 //
 //   node scripts/store-images.mjs [--extension dist]
 //
@@ -26,7 +27,10 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright-core";
 
-import { BASALT, CLAY, mark, SAND, STONE, VARIANTS } from "./logo.mjs";
+import { INK, MIST, mark, SILVER, SMOKE, SNOW, VARIANTS, WHITE } from "./logo.mjs";
+
+/** VS Code's Dark+ terminal, as the popup's log console has it. */
+const TERM = { bg: "#1E1E1E", bar: "#323233", dot: "#5A5A5A", text: "#D4D4D4", red: "#F14C4C" };
 
 const root = resolve(import.meta.dirname, "..");
 const { values } = parseArgs({ options: { extension: { type: "string" } } });
@@ -34,7 +38,7 @@ const extension = resolve(root, values.extension ?? "dist");
 const release = resolve(root, "..", "release");
 mkdirSync(release, { recursive: true });
 
-const MUTED = "#5B5F57";
+const MUTED = SMOKE;
 const SITE = "theledger.example";
 
 // `sinkd check` output, captured from the real command (resolver installed
@@ -159,31 +163,31 @@ const png = (buffer) => `data:image/png;base64,${buffer.toString("base64")}`;
 
 /** A browser window around a page screenshot. */
 const browserWindow = (src, width, address) => `
-  <div style="width:${width}px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 22px 60px rgba(44,48,44,.20)">
-    <div style="height:38px;background:#e4dfd4;display:flex;align-items:center;gap:8px;padding:0 14px">
-      ${[1, 2, 3].map(() => `<span style="width:11px;height:11px;border-radius:50%;background:#cfc8ba"></span>`).join("")}
-      <span style="margin-left:14px;flex:1;height:24px;border-radius:7px;background:#f4f1ea;font:13px -apple-system,system-ui;color:#6b6a63;display:flex;align-items:center;padding:0 12px">${address}</span>
+  <div style="width:${width}px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 22px 60px rgba(22,22,22,.18)">
+    <div style="height:38px;background:${MIST};display:flex;align-items:center;gap:8px;padding:0 14px">
+      ${[1, 2, 3].map(() => `<span style="width:11px;height:11px;border-radius:50%;background:${SILVER}"></span>`).join("")}
+      <span style="margin-left:14px;flex:1;height:24px;border-radius:7px;background:${SNOW};font:13px -apple-system,system-ui;color:${SMOKE};display:flex;align-items:center;padding:0 12px">${address}</span>
     </div>
     <img src="${src}" style="display:block;width:${width}px">
   </div>`;
 
-const STYLE = (bg, ink) => `
+const STYLE = (bg, ink, accent) => `
   * { box-sizing: border-box; }
   body { margin: 0; overflow: hidden; background: ${bg}; color: ${ink};
     font-family: -apple-system, system-ui, "Segoe UI", sans-serif; }
   h1 { margin: 0; font-weight: 500; letter-spacing: -0.015em; }
   .muted { color: ${MUTED}; }
-  .accent { color: ${CLAY}; }
+  .accent { color: ${accent}; }
   ul { list-style: none; padding: 0; margin: 0; }
   li { padding-left: 28px; position: relative; }
-  li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 10px; height: 10px; border-radius: 50%; background: ${CLAY}; }
+  li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 10px; height: 10px; border-radius: 50%; background: ${ink}; }
   .mono { font-family: "SF Mono", Menlo, ui-monospace, monospace; }
   .label { font: 600 14px -apple-system, system-ui; letter-spacing: .06em; text-transform: uppercase; color: ${MUTED}; }
-  .card { background: #fff; border-radius: 14px; padding: 26px 28px; box-shadow: 0 10px 30px rgba(44,48,44,.08); }`;
+  .card { background: #fff; border-radius: 14px; padding: 26px 28px; box-shadow: 0 10px 30px rgba(22,22,22,.08); }`;
 
 /** The title block shared by the feature screenshots. */
 const title = (heading, text) => `
-  <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">${logo("stone", 40)}
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">${logo("graphite", 40)}
     <span style="font:500 22px -apple-system,system-ui;letter-spacing:-.01em">sinkd</span></div>
   <h1 style="font-size:44px;line-height:1.12">${heading}</h1>
   <p class="muted" style="font-size:21px;line-height:1.5;margin:18px 0 0">${text}</p>`;
@@ -196,6 +200,8 @@ const withExtension = await chromium.launchPersistentContext(profile, {
   channel: "chromium",
   headless: true,
   deviceScaleFactor: 2,
+  // The popup as it is once open, without its splash.
+  reducedMotion: "reduce",
   args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, resolverRule],
 });
 const plain = await chromium.launch({ channel: "chromium", headless: true, args: [resolverRule] });
@@ -242,11 +248,11 @@ try {
   const render = async (
     body,
     file,
-    { bg = STONE, ink = BASALT, width = 1280, height = 800 } = {},
+    { bg = SNOW, ink = INK, accent = SMOKE, width = 1280, height = 800 } = {},
   ) => {
     await page.setViewportSize({ width, height });
     await page.setContent(
-      `<!doctype html><html><head><style>${STYLE(bg, ink)} body { width:${width}px; height:${height}px; }</style></head><body>${body}</body></html>`,
+      `<!doctype html><html><head><style>${STYLE(bg, ink, accent)} body { width:${width}px; height:${height}px; }</style></head><body>${body}</body></html>`,
     );
     // At CSS size: the stores want exactly these dimensions. Captures
     // inside were taken at 2x, so they stay sharp.
@@ -256,7 +262,7 @@ try {
   await render(
     `<div style="display:flex;align-items:center;gap:72px;padding:0 96px;height:100%">
       <div style="flex:1">
-        <h1 style="font-size:64px;display:flex;align-items:center;gap:22px">${logo("stone", 76)}sinkd</h1>
+        <h1 style="font-size:64px;display:flex;align-items:center;gap:22px">${logo("graphite", 76)}sinkd</h1>
         <p class="muted" style="font-size:26px;margin:22px 0 40px">Ad and tracker blocking that <span class="accent">blends in</span>.</p>
         <ul style="font-size:22px;line-height:1.5;display:grid;gap:14px">
           <li>Blocks ads, trackers and malware sites</li>
@@ -267,7 +273,7 @@ try {
         </ul>
         <p class="muted" style="font-size:18px;margin-top:40px">No remote code. No data collected.</p>
       </div>
-      <img src="${png(popupFull)}" style="height:700px;border-radius:12px;box-shadow:0 18px 50px rgba(44,48,44,.18)">
+      <img src="${png(popupFull)}" style="height:700px;border-radius:12px;box-shadow:0 18px 50px rgba(22,22,22,.16)">
     </div>`,
     "screenshot-1-overview.png",
   );
@@ -304,13 +310,13 @@ try {
           <li>Kinds of blocking on or off everywhere</li>
         </ul>
       </div>
-      <img src="${png(popupTop)}" style="width:498px;border-radius:14px;box-shadow:0 22px 60px rgba(44,48,44,.20)">
+      <img src="${png(popupTop)}" style="width:498px;border-radius:14px;box-shadow:0 22px 60px rgba(22,22,22,.18)">
     </div>`,
     "screenshot-3-controls.png",
   );
 
   const strike = (s) =>
-    `<span style="text-decoration:line-through;text-decoration-color:${CLAY};text-decoration-thickness:2px;color:#9a8f7f">${s}</span>`;
+    `<span style="text-decoration:line-through;text-decoration-color:${INK};text-decoration-thickness:2px;color:${SMOKE}">${s}</span>`;
   await render(
     `<div style="padding:40px 72px 0">${title(
       "Less to track you with",
@@ -346,19 +352,19 @@ try {
 
   const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const terminal = escapeHtml(TERMINAL)
-    .replace(/^(\$ .*)$/gm, `<span style="color:#f1ece2">$1</span>`)
-    .replace(/BLOCKED/g, `<span style="color:${CLAY}">BLOCKED</span>`);
+    .replace(/^(\$ .*)$/gm, `<span style="color:${WHITE}">$1</span>`)
+    .replace(/BLOCKED/g, `<span style="color:${TERM.red}">BLOCKED</span>`);
   await render(
     `<div style="display:flex;align-items:center;gap:48px;padding:0 64px;height:100%">
       <div style="width:380px">${title(
         "Every app, <span class='accent'>not just the browser</span>",
         "The free sinkd program for macOS and Linux blocks the same trackers for your whole computer, as its DNS resolver. Its allowlist and pause reach the extension too.",
       )}</div>
-      <div style="flex:1;border-radius:12px;overflow:hidden;box-shadow:0 22px 60px rgba(44,48,44,.25)">
-        <div style="height:34px;background:#3a3f39;display:flex;align-items:center;gap:8px;padding:0 14px">
-          ${[1, 2, 3].map(() => `<span style="width:11px;height:11px;border-radius:50%;background:#5c6259"></span>`).join("")}
+      <div style="flex:1;border-radius:12px;overflow:hidden;box-shadow:0 22px 60px rgba(22,22,22,.25)">
+        <div style="height:34px;background:${TERM.bar};display:flex;align-items:center;gap:8px;padding:0 14px">
+          ${[1, 2, 3].map(() => `<span style="width:11px;height:11px;border-radius:50%;background:${TERM.dot}"></span>`).join("")}
         </div>
-        <pre class="mono" style="margin:0;background:${BASALT};color:${SAND};font-size:13.8px;line-height:1.55;padding:22px 24px;white-space:pre">${terminal}</pre>
+        <pre class="mono" style="margin:0;background:${TERM.bg};color:${TERM.text};font-size:13.8px;line-height:1.55;padding:22px 24px;white-space:pre">${terminal}</pre>
       </div>
     </div>`,
     "screenshot-5-every-app.png",
@@ -366,16 +372,16 @@ try {
 
   await render(
     `<div style="display:flex;flex-direction:column;justify-content:center;height:100%;padding:0 36px">
-      <h1 style="font-size:54px;display:flex;align-items:center;gap:16px">${logo("basalt", 64)}sinkd</h1>
-      <p style="font-size:21px;margin:16px 0 0;line-height:1.35;color:#A9A08C">Blocks ads and trackers.<br>
+      <h1 style="font-size:54px;display:flex;align-items:center;gap:16px">${logo("paper", 64)}sinkd</h1>
+      <p style="font-size:21px;margin:16px 0 0;line-height:1.35;color:${SILVER}">Blocks ads and trackers.<br>
         <span class="accent">Blends in.</span></p>
     </div>`,
     "promo-440x280.png",
-    { bg: BASALT, ink: SAND, width: 440, height: 280 },
+    { bg: INK, ink: WHITE, accent: WHITE, width: 440, height: 280 },
   );
   await render(
     `<div style="display:flex;flex-direction:column;justify-content:center;height:100%;padding:0 96px">
-      <h1 style="font-size:84px;display:flex;align-items:center;gap:28px">${logo("stone", 104)}sinkd</h1>
+      <h1 style="font-size:84px;display:flex;align-items:center;gap:28px">${logo("graphite", 104)}sinkd</h1>
       <p class="muted" style="font-size:34px;margin:26px 0 0">Ad and tracker blocking that <span class="accent">blends in</span>.</p>
     </div>`,
     "og-1200x630.png",

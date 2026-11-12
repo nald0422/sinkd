@@ -40,6 +40,7 @@ import {
   isTrackingCookie,
   logEntries,
   logSource,
+  MARK,
   MAX_TOKENS_PER_MESSAGE,
   type Navigation,
   NO_BRIDGE,
@@ -66,11 +67,14 @@ import {
   ruleTarget,
   type ScriptletEntry,
   type Settings,
+  SPLASH,
   sameLine,
   scriptChanges,
   scriptletScripts,
   shortUrl,
   siteOf,
+  splashShapes,
+  splashWordmark,
   storedSettings,
   TRACKER_COOKIES_RULE_ID,
   TRACKER_REFERER_RULE_ID,
@@ -1252,4 +1256,56 @@ test("a page's new tab is closed when the enabled lists block it", () => {
     ),
     true,
   );
+});
+
+// ------------------------------------------------------------- the splash
+
+test("the splash never draws a broken shape, whatever the time", () => {
+  for (const t of [
+    -500,
+    0,
+    1,
+    80,
+    160,
+    300,
+    520,
+    777,
+    1000,
+    1050,
+    1051,
+    5000,
+    Infinity,
+    -Infinity,
+    NaN,
+  ]) {
+    for (const shape of [...splashShapes(t), splashWordmark(t)]) {
+      for (const [key, value] of Object.entries(shape)) {
+        assert.ok(Number.isFinite(value), `${key} at ${t} ms is ${value}`);
+      }
+    }
+  }
+});
+
+test("the splash starts hidden and ends as the mark", () => {
+  assert.ok(splashShapes(0).every((s) => s.opacity === 0));
+  const end = splashShapes(SPLASH.hold);
+  MARK.radii.forEach((r, i) => {
+    const ring = end[i];
+    assert.ok(ring);
+    assert.deepEqual(
+      [ring.cx, ring.cy, ring.w, ring.h, ring.rx, ring.rot, ring.strokeWidth, ring.opacity],
+      [64, MARK.cy[i], 2 * r, 2 * r, r, 0, MARK.stroke, 1],
+    );
+  });
+  const low = end[3];
+  assert.ok(low);
+  assert.deepEqual(
+    [low.cx, low.cy, low.w, low.h, low.rx, low.rot],
+    [64, MARK.low, 11, 11, MARK.dot, 0],
+  );
+  // Past the end, and for nonsense times, it stays the mark.
+  assert.deepEqual(splashShapes(9999), end);
+  assert.deepEqual(splashShapes(Number.NaN), end);
+  assert.deepEqual(splashWordmark(0), { opacity: 0, rise: 6 });
+  assert.deepEqual(splashWordmark(SPLASH.hold), { opacity: 1, rise: 0 });
 });

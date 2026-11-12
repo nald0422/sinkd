@@ -1,10 +1,12 @@
 // The sinkd logo: depression contours. Maps draw a sinkhole as closed
 // contour lines that crowd together on the steep side and close around a
-// low point; here three rings stack on one low point (clay) and fan out
-// toward the top. Two variants of the same mark:
+// low point; here three rings stack on one low point (clay, the brand's
+// one hue) and fan out toward the top. Otherwise in the brand's grays,
+// white to ink; two variants of the same mark:
 //
-//   stone    basalt lines on warm stone (for light surroundings)
-//   basalt   sand lines on deep basalt (for dark surroundings)
+//   paper     ink lines on snow (for dark surroundings, where it stands out)
+//   graphite  white lines on ink (for light surroundings; also the
+//             extension's icon, which must hold on light and dark toolbars)
 //
 // Writes the brand kit into docs/brand/<variant>/:
 //
@@ -15,7 +17,8 @@
 //   icon16/32/48/128.png        toolbar and extension-page icons
 //   wordmark.png                mark and name, on a transparent background
 //
-// and the stone icons into static/icons/, which the extension ships.
+// and the graphite icons into static/icons/, which the extension ships,
+// plus the paper icon32 the popup's header shows in dark mode.
 //
 //   node scripts/logo.mjs
 
@@ -23,14 +26,21 @@ import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
-export const BASALT = "#2C302C";
-export const SAND = "#D9CDB4";
-export const STONE = "#ECE7DD";
+/** The brand's grays, white to ink. */
+export const INK = "#161616";
+export const GRAPHITE = "#3A3A3A";
+export const SMOKE = "#6B6B6B";
+export const PEWTER = "#8A8A8A";
+export const SILVER = "#BDBDBD";
+export const MIST = "#E2E2E2";
+export const SNOW = "#F4F4F4";
+export const WHITE = "#FFFFFF";
+/** The low point: the one hue in the brand. */
 export const CLAY = "#B87A5E";
 
 export const VARIANTS = {
-  stone: { tile: STONE, line: BASALT, text: BASALT },
-  basalt: { tile: BASALT, line: SAND, text: SAND },
+  paper: { tile: SNOW, line: INK, dot: CLAY, text: INK },
+  graphite: { tile: INK, line: WHITE, dot: CLAY, text: WHITE },
 };
 
 /** Rings from the outside in, each bottom one `step` above the last. */
@@ -39,7 +49,7 @@ const LARGE = { radii: [43, 31, 19], step: 7, w: 3.6, dot: 5.5, bottom: 105 };
 const SMALL = { radii: [45, 25], step: 12, w: 9, dot: 9, bottom: 108 };
 
 /** The mark on a 128 grid. */
-export function mark({ tile, line }, { radii, step, w, dot, bottom } = LARGE) {
+export function mark({ tile, line, dot: low }, { radii, step, w, dot, bottom } = LARGE) {
   let s = `<rect width="128" height="128" rx="28" fill="${tile}"/>`;
   radii.forEach((r, i) => {
     const b = bottom - i * step;
@@ -47,7 +57,7 @@ export function mark({ tile, line }, { radii, step, w, dot, bottom } = LARGE) {
   });
   // The low point sits a step above the innermost ring's floor.
   const floor = bottom - (radii.length - 1) * step;
-  return `${s}<circle cx="64" cy="${floor - step - dot + 1}" r="${dot}" fill="${CLAY}"/>`;
+  return `${s}<circle cx="64" cy="${floor - step - dot + 1}" r="${dot}" fill="${low}"/>`;
 }
 
 /**
@@ -73,7 +83,7 @@ const PIXELS16 = [
   "................",
 ];
 
-function mark16({ tile, line }) {
+function mark16({ tile, line, dot }) {
   const cells = { Z: [], P: [] };
   PIXELS16.forEach((row, y) => {
     [...row].forEach((c, x) => {
@@ -83,7 +93,7 @@ function mark16({ tile, line }) {
   return (
     `<rect width="16" height="16" rx="3.5" fill="${tile}"/>` +
     `<g shape-rendering="crispEdges"><g fill="${line}">${cells.Z.join("")}</g>` +
-    `<g fill="${CLAY}">${cells.P.join("")}</g></g>`
+    `<g fill="${dot}">${cells.P.join("")}</g></g>`
   );
 }
 
@@ -128,9 +138,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await browser.close();
   for (const size of [16, 32, 48, 128]) {
     cpSync(
-      join(brand, "stone", `icon${size}.png`),
+      join(brand, "graphite", `icon${size}.png`),
       join(root, "static", "icons", `icon${size}.png`),
     );
   }
+  cpSync(join(brand, "paper", "icon32.png"), join(root, "static", "icons", "paper32.png"));
   console.log(`wrote ${brand} and the extension's icons`);
 }
