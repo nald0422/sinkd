@@ -16,6 +16,8 @@
   <a href="https://chromewebstore.google.com/detail/abgodfdohgofhleaaenojdpjhapecknf"><img alt="Add to Chrome, free" src="https://img.shields.io/badge/Add_to_Chrome-free-3A3A3A?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=161616"></a>
   &nbsp;
   <a href="#every-app-on-your-computer"><img alt="Every app: sudo sinkd install" src="https://img.shields.io/badge/Every_app-sudo_sinkd_install-3A3A3A?style=for-the-badge&logo=rust&logoColor=white&labelColor=161616"></a>
+  &nbsp;
+  <a href="https://nald0422.github.io/sinkd/"><img alt="Website: see it live" src="https://img.shields.io/badge/Website-see_it_live-3A3A3A?style=for-the-badge&logo=githubpages&logoColor=white&labelColor=161616"></a>
 </p>
 
 <p align="center">
@@ -183,6 +185,7 @@ The [guide](docs/guide.md) covers the resolver, every command, the browser bridg
 
 ## Documentation
 
+- **[Website](https://nald0422.github.io/sinkd/)**: the landing page, with the before-and-after slider to try for yourself.
 - **[Using sinkd](docs/guide.md)**: the resolver, installing and uninstalling, the command line, the browser bridge, lists, recovery, and what it can't do.
 - **[Developing sinkd](docs/development.md)**: the layout, and building and testing the crates, the extension and the website.
 - **[Design notes](DESIGN.md)**: the decisions behind sinkd, with measurements.
