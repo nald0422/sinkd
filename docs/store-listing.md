@@ -20,6 +20,7 @@ Text to paste into the Chrome Web Store and addons.mozilla.org (AMO).
 > sinkd blocks ads and trackers with rules compiled from the community filter lists (EasyList, EasyPrivacy, uBlock Origin's lists), and protects your privacy beyond blocking:
 >
 > • Blocks ads, trackers and known malware sites, and serves harmless stand-ins for the ad and analytics scripts pages depend on, so sites keep working.
+> • Closes the ad and scam tabs that pages open on their own.
 > • Hides leftover ad elements, and neutralizes ad-blocker detectors without leaving traces a page could notice.
 > • Removes tracking parameters (utm_*, fbclid, gclid…) from links.
 > • Strips cookies and the referrer from requests to trackers, and caps analytics cookies at a week.

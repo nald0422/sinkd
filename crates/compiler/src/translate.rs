@@ -424,6 +424,80 @@ pub fn translate_network(rule: &NetworkRule) -> Result<Translated, Skip> {
     })
 }
 
+/// A `$popup` rule as a rule for the tabs pages open, or `None` if the rule
+/// has nothing to say about them.
+///
+/// DNR cannot act on a tab a page opens, so the extension checks such tabs
+/// itself, against these, and closes the ones they block. They are kept in
+/// DNR's shape so one matcher reads both, and the pattern translates as it
+/// does for a request. `$domain` names the page that opened the tab, which
+/// is the navigation's initiator; `$third-party` compares the two. A tab is
+/// closed or left alone, so only blocks and exceptions mean anything.
+pub fn translate_popup(rule: &NetworkRule) -> Option<Result<Draft, Skip>> {
+    let o = &rule.options;
+    if !o.types.is_some_and(|t| t.intersects(ResourceTypes::POPUP)) {
+        return None;
+    }
+    Some(popup_draft(rule))
+}
+
+fn popup_draft(rule: &NetworkRule) -> Result<Draft, Skip> {
+    let o = &rule.options;
+    if o.action.is_some() {
+        return Err(reject(
+            "popup:action",
+            "a tab is closed or left alone; nothing else applies to it",
+        ));
+    }
+    if o.header.is_some() || !o.methods.is_empty() {
+        return Err(reject(
+            "popup:option",
+            "a new tab has no response headers or method to match yet",
+        ));
+    }
+    if o.strict_party != StrictParty::Any {
+        return Err(reject(
+            "popup:strict-party",
+            "parties are compared by site, not by host",
+        ));
+    }
+    let mut condition = Condition {
+        resource_types: vec![ResourceType::MainFrame],
+        ..Condition::default()
+    };
+    pattern(rule, &mut condition)?;
+    let (include, exclude) = domains(&o.domains)?;
+    condition.initiator_domains = include;
+    condition.excluded_initiator_domains = exclude;
+    let (to, not_to) = domains(&o.to)?;
+    condition.request_domains.extend(to);
+    condition.excluded_request_domains.extend(not_to);
+    let (denyallow, negated) = domains(&o.denyallow)?;
+    if !negated.is_empty() {
+        return Err(reject("option:denyallow", "negated $denyallow entries"));
+    }
+    condition.excluded_request_domains.extend(denyallow);
+    condition.domain_type = match o.party {
+        Party::Any => None,
+        Party::First => Some(DomainType::FirstParty),
+        Party::Third => Some(DomainType::ThirdParty),
+    };
+    if o.match_case && (condition.url_filter.is_some() || condition.regex_filter.is_some()) {
+        condition.is_url_filter_case_sensitive = Some(true);
+    }
+    let (priority, kind) = match (rule.exception, o.important) {
+        (false, false) => (priority::BLOCK, ActionType::Block),
+        (false, true) => (priority::IMPORTANT_BLOCK, ActionType::Block),
+        (true, false) => (priority::ALLOW, ActionType::Allow),
+        (true, true) => (priority::IMPORTANT_ALLOW, ActionType::Allow),
+    };
+    Ok(Draft {
+        priority,
+        action: Action::of(kind),
+        condition,
+    })
+}
+
 /// `example.com##^responseheader(refresh)`: remove a header from the page's
 /// response.
 pub fn translate_response_header(rule: &ResponseHeaderRule) -> Result<Translated, Skip> {
@@ -974,6 +1048,51 @@ mod tests {
         assert!(matches!(
             translate_response_header(&r),
             Err(Skip::Rejected { feature, .. }) if feature == "responseheader:unsafe"
+        ));
+    }
+
+    #[test]
+    fn popup_rules_become_rules_for_new_tabs() {
+        let popup = |line: &str| translate_popup(&net(line));
+        let tab = |line: &str| {
+            popup(line)
+                .unwrap_or_else(|| panic!("{line}: no popup rule"))
+                .unwrap()
+        };
+        // Requests only: nothing for tabs.
+        assert!(popup("||ads.example^").is_none());
+        assert!(popup("||ads.example^$script").is_none());
+
+        let d = tab("||pop.example^$popup");
+        assert_eq!(d.action.kind, ActionType::Block);
+        assert_eq!(d.priority, priority::BLOCK);
+        assert_eq!(d.condition.request_domains, ["pop.example"]);
+        assert_eq!(d.condition.resource_types, [ResourceType::MainFrame]);
+
+        // `$domain` names the page that opened the tab: the initiator.
+        let d = tab("*$popup,third-party,domain=a.example|~b.a.example");
+        assert_eq!(d.condition.initiator_domains, ["a.example"]);
+        assert_eq!(d.condition.excluded_initiator_domains, ["b.a.example"]);
+        assert_eq!(d.condition.domain_type, Some(DomainType::ThirdParty));
+        assert_eq!(d.condition.url_filter, None);
+
+        assert_eq!(
+            tab("/click?adv=$popup").condition.url_filter.as_deref(),
+            Some("/click?adv=")
+        );
+        let allow = tab("@@||accounts.example^$popup");
+        assert_eq!(allow.action.kind, ActionType::Allow);
+        assert_eq!(allow.priority, priority::ALLOW);
+        assert_eq!(
+            tab("||x.example^$popup,important").priority,
+            priority::IMPORTANT_BLOCK
+        );
+
+        // A page load and a tab: the request rule takes one, this the other.
+        assert_eq!(tab("||x.example^$doc,popup").action.kind, ActionType::Block);
+        assert!(matches!(
+            popup("||x.example^$popup,domain=vipbox.*"),
+            Some(Err(Skip::Rejected { feature, .. })) if feature == "domain:entity"
         ));
     }
 }

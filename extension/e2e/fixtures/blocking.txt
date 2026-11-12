@@ -7,3 +7,5 @@
 ! page load must still lose every tracking parameter.
 $removeparam=s_cid,document
 ||site.test^$removeparam=ref_id
+! A tab a page opens to this host is closed; one it opens elsewhere stays.
+||popup.sinkd.test^$popup

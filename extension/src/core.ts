@@ -1706,3 +1706,169 @@ export function clock(at: number): string {
     .map((n) => String(n).padStart(2, "0"))
     .join(":");
 }
+
+// ------------------------------------------------------------- new tabs
+//
+// Pages open ad tabs (window.open, target=_blank, a click handler), and DNR
+// cannot act on a tab being opened, only on requests. So the background
+// checks each tab a page opens against the lists' `$popup` rules, which
+// `sinkd compile` writes to popups.json in DNR's shape, and closes the tab
+// if they block it, as uBlock Origin does. Matching follows DNR: the
+// highest priority wins, and an allow beats a block of the same priority.
+// `initiatorDomains` names the page that opened the tab.
+
+/** An entry of popups.json: a ruleset's rules for new tabs. */
+export interface PopupRules {
+  ruleset: string;
+  rules: DnrRule[];
+}
+
+/** DNR's separator `^`: anything but a letter, a digit or `_-.%`, or the end. */
+const SEPARATOR = "(?:[^a-zA-Z0-9_.%-]|$)";
+
+/** A DNR `urlFilter` as a regular expression, with its anchors and wildcards. */
+export function urlFilterRegExp(filter: string, caseSensitive = false): RegExp {
+  let body = filter;
+  let start = "";
+  let end = "";
+  if (body.startsWith("||")) {
+    // The start of the host or of one of its labels.
+    start = "^[a-z][a-z0-9+.-]*:\\/\\/(?:[^/?#@]*@)?(?:[^/?#]*\\.)?";
+    body = body.slice(2);
+  } else if (body.startsWith("|")) {
+    start = "^";
+    body = body.slice(1);
+  }
+  if (body.endsWith("|")) {
+    end = "$";
+    body = body.slice(0, -1);
+  }
+  const source = [...body]
+    .map((c) =>
+      c === "*" ? ".*" : c === "^" ? SEPARATOR : c.replace(/[.+?${}()|[\]\\/]/g, "\\$&"),
+    )
+    .join("");
+  return new RegExp(start + source + end, caseSensitive ? "" : "i");
+}
+
+/** A rule made ready to match: its address test, and its domain lists as sets. */
+interface PopupMatcher {
+  address: RegExp | null;
+  to: Set<string> | null;
+  notTo: Set<string>;
+  from: Set<string> | null;
+  notFrom: Set<string>;
+}
+
+const popupMatchers = new WeakMap<DnrRule, PopupMatcher | null>();
+
+function popupMatcher(rule: DnrRule): PopupMatcher | null {
+  let matcher = popupMatchers.get(rule);
+  if (matcher === undefined) {
+    const c = rule.condition;
+    const sensitive = c.isUrlFilterCaseSensitive === true;
+    try {
+      matcher = {
+        address: c.regexFilter
+          ? new RegExp(c.regexFilter, sensitive ? "" : "i")
+          : c.urlFilter
+            ? urlFilterRegExp(c.urlFilter, sensitive)
+            : null,
+        to: c.requestDomains ? new Set(c.requestDomains) : null,
+        notTo: new Set(c.excludedRequestDomains ?? []),
+        from: c.initiatorDomains ? new Set(c.initiatorDomains) : null,
+        notFrom: new Set(c.excludedInitiatorDomains ?? []),
+      };
+    } catch {
+      // A regex JavaScript can't read (RE2 differs at the edges): skip it.
+      matcher = null;
+    }
+    popupMatchers.set(rule, matcher);
+  }
+  return matcher;
+}
+
+const inSet = (host: string, set: Set<string>) => hostAndParents(host).some((h) => set.has(h));
+
+/**
+ * Whether `rule` applies to a tab opened at `url` by a page at `openerHost`
+ * (`null` when no page opened it, or it can't be told). `sites` gives the
+ * registrable domain of a host, for `domainType`.
+ */
+export function popupRuleMatches(
+  rule: DnrRule,
+  url: URL,
+  openerHost: string | null,
+  sites: (host: string) => string,
+): boolean {
+  const m = popupMatcher(rule);
+  if (m === null) {
+    return false;
+  }
+  const host = url.hostname;
+  if (m.to && !inSet(host, m.to)) return false;
+  if (inSet(host, m.notTo)) return false;
+  if (m.from && (openerHost === null || !inSet(openerHost, m.from))) return false;
+  if (openerHost !== null && inSet(openerHost, m.notFrom)) return false;
+  const party = rule.condition.domainType as string | undefined;
+  if (party) {
+    if (openerHost === null) return false;
+    const third = sites(host) !== sites(openerHost);
+    if ((party === "thirdParty") !== third) return false;
+  }
+  return m.address === null || m.address.test(url.href);
+}
+
+/**
+ * Whether to close a tab opened at `url` by a page at `opener`: what the
+ * enabled rulesets' popup rules decide. Never on a site where sinkd is off,
+ * and only for web addresses (a tab opened blank is checked again once it
+ * has one).
+ */
+export function closesPopup(
+  url: string,
+  opener: string | null,
+  sets: readonly PopupRules[],
+  settings: Settings,
+  suffixes: readonly string[],
+): boolean {
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    return false;
+  }
+  if (target.protocol !== "http:" && target.protocol !== "https:") {
+    return false;
+  }
+  let openerHost: string | null = null;
+  try {
+    const page = opener ? new URL(opener) : null;
+    if (page && (page.protocol === "http:" || page.protocol === "https:")) {
+      openerHost = page.hostname;
+    }
+  } catch {
+    // No page to speak of.
+  }
+  if (settings.pausedAll) {
+    return false;
+  }
+  const openerSite = opener ? siteOf(opener) : null;
+  if (openerSite !== null && isPaused(settings, openerSite)) {
+    return false;
+  }
+  const sites = (host: string) => registrableDomain(host, suffixes);
+  let best: { priority: number; allow: boolean } | null = null;
+  for (const set of sets) {
+    if (settings.disabledRulesets.includes(set.ruleset)) continue;
+    for (const rule of set.rules) {
+      const priority = rule.priority ?? 1;
+      const allow = (rule.action.type as string) !== "block";
+      if (best && (priority < best.priority || (priority === best.priority && !allow))) continue;
+      if (popupRuleMatches(rule, target, openerHost, sites)) {
+        best = { priority, allow };
+      }
+    }
+  }
+  return best !== null && !best.allow;
+}

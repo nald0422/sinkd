@@ -7,6 +7,7 @@
 // the browser itself, from the static and dynamic rules. Only in Firefox
 // does this script see requests: webRequest there uncloaks CNAMEs, and
 // applies the header rules to navigations, which Firefox's DNR doesn't.
+// It closes the ad tabs pages open, which no request rule can stop.
 
 import {
   aliasBlocked,
@@ -18,6 +19,7 @@ import {
   browserOf,
   type ContentRequest,
   cappedCookie,
+  closesPopup,
   cssTarget,
   effectiveSettings,
   FEATURES,
@@ -37,6 +39,7 @@ import {
   normalizeBridge,
   normalizeSettings,
   PAUSE_RULE_ID,
+  type PopupRules,
   PRIVACY_RULE_IDS,
   pageMask,
   parseBridgeMessage,
@@ -87,6 +90,13 @@ let trackersCache: Promise<string[]> | undefined;
 const trackers = (): Promise<string[]> => {
   trackersCache ??= packaged<string[]>("trackers.json");
   return trackersCache;
+};
+
+let popupsCache: Promise<PopupRules[]> | undefined;
+/** The lists' `$popup` rules; none if the build has no popups.json. */
+const popupRules = (): Promise<PopupRules[]> => {
+  popupsCache ??= packaged<PopupRules[]>("popups.json").catch(() => []);
+  return popupsCache;
 };
 
 let suffixesCache: Promise<string[]> | undefined;
@@ -459,6 +469,64 @@ async function handleContent(
   }
   return reply;
 }
+
+// --------------------------------------------------------------- new tabs
+//
+// A tab a page opens (it has an opener) is checked against the lists'
+// `$popup` rules at its first web address, and closed if they block it
+// (see "new tabs" in core.ts). A tab opened blank and sent somewhere
+// after is checked when it gets there. Only the first few seconds of a
+// tab count: after that it is the user's.
+
+/** How long after it opens a tab is still checked. */
+const POPUP_WINDOW_MS = 8000;
+
+/** Tabs pages opened, by id: when, and the address of the page that opened them. */
+const openedTabs = new Map<number, { at: number; opener: Promise<string | null> }>();
+
+async function checkOpenedTab(tabId: number, url: string | undefined): Promise<void> {
+  const opened = openedTabs.get(tabId);
+  if (!opened || !url || !/^https?:/.test(url)) {
+    return;
+  }
+  if (Date.now() - opened.at > POPUP_WINDOW_MS) {
+    openedTabs.delete(tabId);
+    return;
+  }
+  const settings = await loadSettings();
+  // What the resolver's allowlist frees, sinkd doesn't block here either.
+  if (bridgeAllows(bridgeNow, new URL(url).hostname)) {
+    return;
+  }
+  const [opener, rules, suffixList] = await Promise.all([opened.opener, popupRules(), suffixes()]);
+  if (closesPopup(url, opener, rules, settings, suffixList)) {
+    openedTabs.delete(tabId);
+    // Gone already, if the user was quicker.
+    await chrome.tabs.remove(tabId).catch(() => {});
+  }
+}
+
+chrome.tabs.onCreated.addListener((tab) => {
+  if (tab.id === undefined || tab.openerTabId === undefined) {
+    return;
+  }
+  const opener = chrome.tabs.get(tab.openerTabId).then(
+    (page) => page.url ?? null,
+    () => null,
+  );
+  openedTabs.set(tab.id, { at: Date.now(), opener });
+  checkOpenedTab(tab.id, tab.pendingUrl || tab.url).catch((e) =>
+    console.error("sinkd: new tab check failed", e),
+  );
+});
+chrome.tabs.onUpdated.addListener((tabId, change) => {
+  if (change.url) {
+    checkOpenedTab(tabId, change.url).catch((e) => console.error("sinkd: new tab check failed", e));
+  }
+});
+chrome.tabs.onRemoved.addListener((tabId) => {
+  openedTabs.delete(tabId);
+});
 
 // ------------------------------------------------------- fingerprint seeds
 

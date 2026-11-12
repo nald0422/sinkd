@@ -1008,6 +1008,16 @@ Apache-2.0:
     pages and frames.
   - DNR cannot turn off *one* feature on one site (an allow rule cancels
     everything below it), so the per-site switch is all-or-nothing.
+- **New tabs:** DNR can't act on a tab a page opens, only on requests, so
+  the compiler translates the lists' `$popup` rules (and `$all`, which
+  includes them) like page loads instead, with `$domain` as the opening
+  page (the initiator), into `popups.json`, which Chrome never sees. The
+  worker checks each tab that has an opener at its first web address, for
+  its first 8 seconds (a tab opened blank is checked once it navigates),
+  and closes it when the enabled rulesets block it, as uBlock Origin does.
+  Off where sinkd is off. No permission: `tabs.onCreated` and the tab's
+  address come with the site access sinkd has. Popup closings are not in
+  the badge count, which is Chrome's.
 - **Badge:** `displayActionCountAsBadgeText` counts each match in the tab
   of a rule that did something: a block, a redirect, a header change.
   Allow rules are left out. The Global Privacy Control header is a header

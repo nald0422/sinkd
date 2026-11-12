@@ -11,6 +11,9 @@
 //! 5. Every rule is checked as Chrome would ([`crate::validate`]), quotas
 //!    are applied, and rules are sorted and numbered, so the same lists
 //!    always give byte-identical output.
+//! 6. `$popup` rules, which DNR cannot apply, go the same way into rules
+//!    for the tabs pages open ([`crate::translate::translate_popup`]); the
+//!    extension checks those itself.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
@@ -23,7 +26,8 @@ use sinkd_filters::{Env, Line, Lines, NetworkRule, Rule, is_comment, parse_rule}
 use crate::dnr::{self, ActionType};
 use crate::page::{PageOutput, PageTarget};
 use crate::translate::{
-    Draft, Feature, Skip, Translated, priority, translate_network, translate_response_header,
+    Draft, Feature, Skip, Translated, priority, translate_network, translate_popup,
+    translate_response_header,
 };
 use crate::validate::{self, MAX_REGEX_RULES};
 
@@ -54,6 +58,9 @@ pub struct DnsSet {
 #[derive(Debug, Clone)]
 pub struct Compiled {
     pub rulesets: Vec<Ruleset>,
+    /// Per ruleset that has any, its rules for the tabs pages open
+    /// (`$popup`), in DNR's shape but never given to Chrome.
+    pub popups: Vec<Ruleset>,
     pub dns: DnsSet,
     /// Per ruleset, the hosts it names outright, for what the extension
     /// does outside DNR.
@@ -147,6 +154,8 @@ pub struct Report {
     /// Cosmetic and scriptlet rules, and page exceptions, for the
     /// extension's page index and scriptlet files.
     pub page: TargetReport,
+    /// `$popup` rules, for the tabs pages open.
+    pub popups: TargetReport,
     /// Rules for no output of this build: `$cname` exceptions, which only
     /// the resolver uses.
     pub later: BTreeMap<String, usize>,
@@ -241,6 +250,7 @@ pub fn compile(lists: &[ListInput], params_ruleset: Option<&str>) -> Compiled {
     }
 
     let mut named: BTreeMap<String, NamedHosts> = BTreeMap::new();
+    let mut popup_drafts: BTreeMap<String, Vec<Draft>> = BTreeMap::new();
     for (index, line, text, rule) in pending {
         if badfilters.contains(&badfilter_key(&rule)) {
             report.badfiltered += 1;
@@ -263,6 +273,29 @@ pub fn compile(lists: &[ListInput], params_ruleset: Option<&str>) -> Compiled {
                 Ok(()) => {}
             }
         }
+        match translate_popup(&rule) {
+            Some(Ok(draft)) => {
+                report.popups.translated += 1;
+                popup_drafts
+                    .entry(lists[index].ruleset.clone())
+                    .or_default()
+                    .push(draft);
+            }
+            Some(Err(Skip::Rejected { feature, reason })) => {
+                report
+                    .popups
+                    .reject(&lists[index].name, line, &text, feature, reason);
+            }
+            Some(Err(Skip::OtherTarget(_))) | None => {}
+        }
+        // A rule for tabs alone has nothing for DNR.
+        if rule
+            .options
+            .types
+            .is_some_and(|t| t.without(ResourceTypes::POPUP).is_empty())
+        {
+            continue;
+        }
         translated.push((index, line, text, translate_network(&rule)));
     }
 
@@ -274,7 +307,8 @@ pub fn compile(lists: &[ListInput], params_ruleset: Option<&str>) -> Compiled {
             Ok(t) => {
                 report.chrome.translated += 1;
                 report.lists[index].chrome_translated += 1;
-                if !t.narrowed.is_empty() {
+                // The popup part of a rule went to the popup rules.
+                if t.narrowed.iter().any(|n| *n != "type:popup") {
                     report.chrome.narrowed += 1;
                 }
                 let ruleset = match (t.feature, params_ruleset) {
@@ -330,6 +364,14 @@ pub fn compile(lists: &[ListInput], params_ruleset: Option<&str>) -> Compiled {
         ));
     }
 
+    let popups = popup_drafts
+        .into_iter()
+        .map(|(id, drafts)| {
+            let rules = finish(drafts, &format!("{id} (popups)"), &mut report);
+            Ruleset { id, rules }
+        })
+        .collect();
+
     let dns = dns_set(lists, &mut report);
     // In list order, then line order, however they were found.
     let order: HashMap<&str, usize> = lists
@@ -337,7 +379,12 @@ pub fn compile(lists: &[ListInput], params_ruleset: Option<&str>) -> Compiled {
         .enumerate()
         .map(|(i, l)| (l.name.as_str(), i))
         .collect();
-    for target in [&mut report.chrome, &mut report.dns, &mut report.page] {
+    for target in [
+        &mut report.chrome,
+        &mut report.dns,
+        &mut report.page,
+        &mut report.popups,
+    ] {
         target
             .entries
             .sort_by_key(|e| (order.get(e.list.as_str()).copied(), e.line));
@@ -348,6 +395,7 @@ pub fn compile(lists: &[ListInput], params_ruleset: Option<&str>) -> Compiled {
         .collect();
     Compiled {
         rulesets,
+        popups,
         dns,
         hosts,
         page: page.finish(),
@@ -879,11 +927,12 @@ mod tests {
             &[list(
                 "a",
                 "ads",
-                "! comment\n||x.example^$popup\nexample.com##.ad\nexample.com##+js(set, a, 1)\n||y.example^$frobnicate\n!#if env_firefox\n||ff.example^\n!#endif\nexample.com##+js(no-such-scriptlet)\n",
+                "! comment\n||x.example^$popup,domain=vipbox.*\nexample.com##.ad\nexample.com##+js(set, a, 1)\n||y.example^$frobnicate\n!#if env_firefox\n||ff.example^\n!#endif\nexample.com##+js(no-such-scriptlet)\n",
             )],
             None,
         );
-        assert_eq!(c.report.chrome.by_feature["type:popup"], 1);
+        assert_eq!(c.report.popups.by_feature["domain:entity"], 1);
+        assert_eq!(c.report.chrome.by_feature.get("type:popup"), None);
         assert_eq!(c.report.chrome.by_feature["option:unknown"], 1);
         assert_eq!(c.report.page.translated, 2);
         assert_eq!(
@@ -891,10 +940,10 @@ mod tests {
             "{:?}",
             c.report.page
         );
-        let e = &c.report.chrome.entries[0];
+        let e = &c.report.popups.entries[0];
         assert_eq!(
             (e.list.as_str(), e.line, e.text.as_str()),
-            ("a", 2, "||x.example^$popup")
+            ("a", 2, "||x.example^$popup,domain=vipbox.*")
         );
         assert_eq!(
             c.report.lists[0].rules, 5,
@@ -903,6 +952,43 @@ mod tests {
         // The firefox-only rule is excluded for Chrome but kept for DNS,
         // whose environment has no firefox token either: both skip it.
         assert!(!c.dns.block.contains(&"ff.example".to_owned()));
+    }
+
+    #[test]
+    fn popup_rules_go_to_the_rules_for_tabs() {
+        let c = compile(
+            &[list(
+                "a",
+                "ads",
+                "||pop1.example^$popup\n||pop2.example^$popup\n@@||ok.example^$popup\n||both.example^$doc,popup\n||gone.example^$popup\n||gone.example^$popup,badfilter\n",
+            )],
+            None,
+        );
+        // Only the page-load half of `$doc,popup` is a DNR rule, and it
+        // lost nothing: its popup half is a rule for tabs.
+        let ads = &c.rulesets[0].rules;
+        assert_eq!(ads.len(), 1);
+        assert_eq!(ads[0].condition.request_domains, ["both.example"]);
+        assert_eq!(c.report.chrome.rejected, 0);
+        assert_eq!(c.report.chrome.narrowed, 0);
+
+        assert_eq!(c.popups.len(), 1);
+        let popups = &c.popups[0];
+        assert_eq!(popups.id, "ads");
+        // Plain host rules merge, as request rules do.
+        let kinds: Vec<_> = popups.rules.iter().map(|r| r.action.kind).collect();
+        assert_eq!(kinds.len(), 2, "{:?}", popups.rules);
+        let block = popups
+            .rules
+            .iter()
+            .find(|r| r.action.kind == ActionType::Block)
+            .expect("a block rule");
+        assert_eq!(
+            block.condition.request_domains,
+            ["both.example", "pop1.example", "pop2.example"]
+        );
+        assert_eq!(c.report.popups.translated, 4);
+        assert_eq!(c.report.badfiltered, 1);
     }
 
     #[test]

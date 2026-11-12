@@ -3,6 +3,8 @@
 //! ```text
 //! <out>/rulesets/<id>.json   DNR rules, one per line
 //! <out>/rulesets.json        index: id, name, enabled, path, counts
+//! <out>/popups.json          per ruleset, its rules for the tabs pages open
+//!                            (`$popup`), which the extension applies itself
 //! <out>/war/*                surrogates (web-accessible resources)
 //! <out>/dns/block.txt        the resolver's domain set ("domains" format)
 //! <out>/dns/allow.txt
@@ -50,6 +52,14 @@ pub struct UncloakEntry<'a> {
     pub documents: &'a [String],
 }
 
+/// An entry of `popups.json`: a ruleset's rules for new tabs, numbered and
+/// shaped as DNR rules (see [`crate::translate::translate_popup`]).
+#[derive(Debug, Serialize)]
+pub struct PopupEntry<'a> {
+    pub ruleset: &'a str,
+    pub rules: &'a [crate::dnr::Rule],
+}
+
 /// An entry of `scriptlets.json`.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -89,6 +99,15 @@ pub fn write(compiled: &Compiled, manifest: &Manifest, out: &Path) -> io::Result
         });
     }
     fs::write(out.join("rulesets.json"), pretty(&index)?)?;
+    let popups: Vec<PopupEntry> = compiled
+        .popups
+        .iter()
+        .map(|r| PopupEntry {
+            ruleset: &r.id,
+            rules: &r.rules,
+        })
+        .collect();
+    fs::write(out.join("popups.json"), serde_json::to_string(&popups)?)?;
 
     // Third-party trackers, for the extension's cookie and Referer rules.
     let mut trackers: BTreeSet<&str> = BTreeSet::new();

@@ -55,6 +55,7 @@ async function startServer() {
       res.end(body);
     };
     if (path === "/page.html") return send("text/html", page());
+    if (path === "/opener.html") return send("text/html", OPENER);
     if (path === "/landing") return send("text/html", "<title>landing</title>");
     if (path === "/ad.js") return send("text/javascript", "window.results.adLoaded = true;");
     if (path === "/allowed.js") {
@@ -97,6 +98,12 @@ function page() {
   if (window.ga) ga("send", "pageview", { hitCallback: function () { results.gaCallback = true; } });
 </script>`;
 }
+
+/** A page that opens tabs: an ad's, by script and by link, and an ordinary one. */
+const OPENER = `<!doctype html><title>opener</title>
+<button id="ad" onclick="window.open('http://popup.sinkd.test/landing')">ad</button>
+<a id="link" target="_blank" href="http://popup.sinkd.test/landing?via=link">link</a>
+<button id="ok" onclick="window.open('http://site.test/landing?opened=1')">ok</button>`;
 
 /**
  * The browser with the extension: its context, `evaluate(fn, arg)` in the
@@ -258,6 +265,21 @@ async function run() {
     log.length = 0;
     await tab.goto(`${site}/landing?utm_source=news`);
     assert.deepEqual(log, ["site.test/landing"]);
+  });
+  check("closes the ad tabs pages open, and only those", async () => {
+    await tab.goto(`${site}/opener.html`);
+    const opened = async (selector) => {
+      const [page] = await Promise.all([ext.context.waitForEvent("page"), tab.click(selector)]);
+      return page;
+    };
+    for (const selector of ["#ad", "#link"]) {
+      const ad = await opened(selector);
+      if (!ad.isClosed()) await ad.waitForEvent("close", { timeout: 5000 });
+    }
+    const ok = await opened("#ok");
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    assert.equal(ok.isClosed(), false, "an unlisted tab stays open");
+    await ok.close();
   });
   check("the popup lists the rulesets", async () => {
     const count = await ext.popup(

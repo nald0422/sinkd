@@ -82,6 +82,7 @@ export function notices({ version, browser, lists }) {
     ["scriptlets/", "sinkd's scriptlet library, each file joined with a table"],
     ["", "compiled from the lists, so under the GPL as a whole"],
     ["scriptlets.json", "where each scriptlet file runs"],
+    ["popups.json", "the lists' rules for tabs that pages open"],
     ["trackers.json", "tracker hosts, for the cookie and Referer rules"],
     ...(browser === "firefox"
       ? [["uncloak.json", "each ruleset's hosts, for CNAME uncloaking"]]
@@ -300,6 +301,7 @@ export function build(options = {}) {
     "page",
     "scriptlets",
     "rulesets.json",
+    "popups.json",
     "scriptlets.json",
     "trackers.json",
     "suffixes.json",

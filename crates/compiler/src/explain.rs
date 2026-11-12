@@ -4,8 +4,8 @@
 //! This evaluates the *source* filter rules, with the usual adblock
 //! precedence, so the answer names the rule and the list line responsible.
 //! Each deciding rule is then checked against the DNR translation, which
-//! says whether the extension applies it at all (a `$popup` rule, say, it
-//! cannot).
+//! says whether the extension applies it to the request at all (a `$popup`
+//! rule, say, it applies to new tabs instead).
 //!
 //! Precedence, strongest first:
 //!

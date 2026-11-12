@@ -17,6 +17,7 @@ import {
   COOKIE_CAP_SECONDS,
   cappedCookie,
   clock,
+  closesPopup,
   cssTarget,
   DYNAMIC_RULESET,
   describeRule,
@@ -47,11 +48,13 @@ import {
   normalizeBridge,
   normalizeSettings,
   PAUSE_RULE_ID,
+  type PopupRules,
   PRIVACY_PRIORITY,
   pageMask,
   parseBridgeMessage,
   parseContentRequest,
   pauseRule,
+  popupRuleMatches,
   privacyRules,
   REFERRER_POLICY_RULE_ID,
   type RulesetInfo,
@@ -75,6 +78,7 @@ import {
   type UncloakRequest,
   USER_PRIORITY,
   uncloakCandidate,
+  urlFilterRegExp,
   withFeature,
   withRuleset,
   withSite,
@@ -1137,4 +1141,115 @@ test("addresses and times read as in a console", () => {
   assert.equal(shortUrl("wss://chat.example/socket"), "chat.example/socket");
   const at = new Date(2026, 10, 11, 9, 5, 7).getTime();
   assert.equal(clock(at), "09:05:07");
+});
+
+// ------------------------------------------------------------- new tabs
+
+test("DNR URL filters read as DNR reads them", () => {
+  const re = (f: string) => urlFilterRegExp(f);
+  assert.ok(re("||pop.example^").test("https://pop.example/x"));
+  assert.ok(re("||pop.example^").test("https://a.b.pop.example:8080/"));
+  assert.ok(re("||pop.example^").test("https://pop.example"));
+  assert.ok(!re("||pop.example^").test("https://notpop.example/"));
+  assert.ok(!re("||pop.example^").test("https://pop.example.org/"));
+  assert.ok(re("/click?adv=").test("https://ads.test/click?adv=7"));
+  assert.ok(re("/apop/redirect/zone/*").test("https://x.test/apop/redirect/zone/42"));
+  assert.ok(re("|https://a.test/|").test("https://a.test/"));
+  assert.ok(!re("|https://a.test/|").test("https://a.test/b"));
+  assert.ok(re("ADS").test("https://x.test/ads"), "case-insensitive by default");
+  assert.ok(!urlFilterRegExp("ADS", true).test("https://x.test/ads"));
+});
+
+const popupRule = (id: number, action: string, condition: object, priority = 10): Rule =>
+  ({
+    id,
+    priority,
+    action: { type: action },
+    condition: { resourceTypes: ["main_frame"], ...condition },
+  }) as Rule;
+
+test("popup rules: target, opener and party", () => {
+  const site = (h: string) => registrableDomain(h, ["co.uk"]);
+  const url = new URL("https://go.popads.example/r?id=1");
+  const at = (condition: object, opener: string | null = "news.site.test") =>
+    popupRuleMatches(popupRule(1, "block", condition), url, opener, site);
+  assert.ok(at({ requestDomains: ["popads.example", "other.example"] }));
+  assert.ok(!at({ requestDomains: ["other.example"] }));
+  assert.ok(
+    !at({ requestDomains: ["popads.example"], excludedRequestDomains: ["go.popads.example"] }),
+  );
+  // `$domain` is the page that opened the tab.
+  assert.ok(at({ initiatorDomains: ["site.test"] }));
+  assert.ok(!at({ initiatorDomains: ["elsewhere.test"] }));
+  assert.ok(!at({ initiatorDomains: ["site.test"] }, null));
+  assert.ok(!at({ excludedInitiatorDomains: ["news.site.test"] }));
+  assert.ok(at({ domainType: "thirdParty" }));
+  assert.ok(!at({ domainType: "firstParty" }));
+  assert.ok(!at({ domainType: "thirdParty" }, "www.popads.example"));
+  assert.ok(at({ urlFilter: "/r?id=" }));
+  assert.ok(at({ regexFilter: "^https://go\\.popads\\.example/" }));
+  // A regex JavaScript can't read never matches, and never throws.
+  assert.ok(!at({ regexFilter: "(?P<x>a)" }));
+});
+
+test("a page's new tab is closed when the enabled lists block it", () => {
+  const sets: PopupRules[] = [
+    {
+      ruleset: "ads",
+      rules: [
+        popupRule(1, "block", { requestDomains: ["popads.example", "ok.example"] }),
+        popupRule(2, "block", { domainType: "thirdParty", initiatorDomains: ["warez.test"] }),
+        popupRule(3, "block", { requestDomains: ["vip.example"] }, 50),
+      ],
+    },
+    {
+      ruleset: "unbreak",
+      rules: [
+        popupRule(4, "allow", { requestDomains: ["ok.example", "vip.example"] }, 40),
+        popupRule(5, "allow", { requestDomains: ["accounts.example"] }, 40),
+      ],
+    },
+  ];
+  const closes = (url: string, opener: string | null, settings = settingsWith()) =>
+    closesPopup(url, opener, sets, settings, []);
+  assert.equal(closes("https://popads.example/x", "https://news.test/"), true);
+  assert.equal(closes("https://news.test/next", "https://news.test/"), false);
+  // An exception beats a block, unless the block is `$important`.
+  assert.equal(closes("https://ok.example/", "https://news.test/"), false);
+  assert.equal(closes("https://vip.example/", "https://news.test/"), true);
+  // Every tab a warez.test page opens elsewhere, but not the site's own.
+  assert.equal(closes("https://accounts.example/login", "https://warez.test/"), false);
+  assert.equal(closes("https://anything.test/", "https://warez.test/"), true);
+  assert.equal(closes("https://warez.test/page2", "https://warez.test/"), false);
+  // Only web addresses; a blank tab is checked again once it has one.
+  assert.equal(closes("about:blank", "https://news.test/"), false);
+  // Off where sinkd is off, and with the ruleset that has the rule.
+  assert.equal(
+    closes(
+      "https://popads.example/",
+      "https://news.test/",
+      settingsWith({ pausedSites: ["news.test"] }),
+    ),
+    false,
+  );
+  assert.equal(
+    closes("https://popads.example/", "https://news.test/", settingsWith({ pausedAll: true })),
+    false,
+  );
+  assert.equal(
+    closes(
+      "https://popads.example/",
+      "https://news.test/",
+      settingsWith({ disabledRulesets: ["ads"] }),
+    ),
+    false,
+  );
+  assert.equal(
+    closes(
+      "https://ok.example/",
+      "https://news.test/",
+      settingsWith({ disabledRulesets: ["unbreak"] }),
+    ),
+    true,
+  );
 });

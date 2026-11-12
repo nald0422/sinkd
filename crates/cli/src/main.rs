@@ -527,6 +527,11 @@ async fn compile(rulesets: &Path, out: &Path, cache: Option<PathBuf>, offline: b
         .map(|h| h.block.len())
         .sum();
     println!("  tracker hosts for cookie and Referer stripping: {trackers}");
+    let popup_rules: usize = compiled.popups.iter().map(|p| p.rules.len()).sum();
+    println!(
+        "  rules for new tabs: {popup_rules} from {} $popup filter rules ({} not usable)",
+        r.popups.translated, r.popups.rejected
+    );
     let chrome = &r.chrome;
     println!(
         "Chrome: {} rules translated ({} narrowed), {} not translatable:",

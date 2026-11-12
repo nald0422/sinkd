@@ -17,6 +17,9 @@ is sent to the developer or to anyone else.
   device. A random key for fingerprint protection, kept only for the
   browser session. If you connect the browser bridge, the allowlist,
   blocklist and pause state it receives from sinkd on your computer.
+- **New tabs.** When a page opens a tab, the extension compares that
+  tab's address with the filter lists it ships with, and closes the tab if
+  they block it. This happens on your device and goes nowhere.
 - **The log** (Chrome). When you open the popup, it asks Chrome which of
   sinkd's rules acted in that tab, and reads the hostnames the page loaded
   from, to say which ones a rule over a list of sites acted on. While the
