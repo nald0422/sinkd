@@ -13,3 +13,8 @@ lists' `$redirect=` rules select them unchanged.
 
 The files carry no comments: a page can fetch a web-accessible resource and
 read it, so nothing in them names the extension.
+
+`noop-1s.mp4` is one black 64×64 H.264 frame shown for one second, with no
+audio track. The frame was encoded with macOS's AVFoundation and wrapped in
+a minimal MP4 container written by hand: no edit list, no encoder SEI, no
+metadata.

@@ -43,6 +43,7 @@ static RESOURCES: &[Resource] = resources! {
     "noop.css" => ["noopcss", "abp-resource:blank-css"],
     "noop.json" => ["noopjson"],
     "noop-0.1s.mp3" => ["noopmp3-0.1s", "abp-resource:blank-mp3"],
+    "noop-1s.mp4" => ["noopmp4-1s", "abp-resource:blank-mp4"],
     "1x1.gif" => ["1x1-transparent.gif", "abp-resource:1x1-transparent-gif"],
     "2x2.png" => ["2x2-transparent.png", "abp-resource:2x2-transparent-png"],
     "3x2.png" => ["3x2-transparent.png", "abp-resource:3x2-transparent-png"],
@@ -62,6 +63,7 @@ static RESOURCES: &[Resource] = resources! {
     "amazon_apstag.js" => ["amazon-adsystem.com/aax2/apstag.js"],
     "scorecardresearch_beacon.js" => ["scorecardresearch.com/beacon.js"],
     "doubleclick_instream_ad_status.js" => ["doubleclick.net/instream/ad_status.js"],
+    "google-ima.js" => ["google-ima3"],
 };
 
 /// Every bundled resource.
@@ -90,7 +92,13 @@ mod tests {
                 .extension_path(),
             "/war/googletagservices_gpt.js"
         );
-        assert!(find("noop-1s.mp4").is_none());
+        assert_eq!(find("google-ima3").unwrap().name, "google-ima.js");
+        assert_eq!(find("noopmp4-1s").unwrap().name, "noop-1s.mp4");
+        assert_eq!(
+            find("abp-resource:blank-mp4").unwrap().extension_path(),
+            "/war/noop-1s.mp4"
+        );
+        assert!(find("noop-30s.mp4").is_none());
     }
 
     #[test]
@@ -104,8 +112,24 @@ mod tests {
         }
         assert!(find("1x1.gif").unwrap().body.starts_with(b"GIF89a"));
         assert!(find("2x2.png").unwrap().body.starts_with(b"\x89PNG"));
+        // An MP4 opens with its `ftyp` box: a 4-byte size, then the type.
+        assert_eq!(&find("noop-1s.mp4").unwrap().body[4..8], b"ftyp");
         let gpt = std::str::from_utf8(find("googletagservices_gpt.js").unwrap().body).unwrap();
         assert!(gpt.contains("cmd.push"));
+        let ima = std::str::from_utf8(find("google-ima.js").unwrap().body).unwrap();
+        for api in [
+            "google.ima =",
+            "AdDisplayContainer",
+            "AdsLoader",
+            "AdsManager",
+            "AdsRequest",
+            "AdEvent",
+            "AdErrorEvent",
+            "ImaSdkSettings",
+            "VAST_EMPTY_RESPONSE",
+        ] {
+            assert!(ima.contains(api), "google-ima.js lacks {api}");
+        }
         for r in all() {
             assert!(
                 !String::from_utf8_lossy(r.body)

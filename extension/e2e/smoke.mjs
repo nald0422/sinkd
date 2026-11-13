@@ -90,12 +90,21 @@ function page() {
 <script src="${url("pagead2.googlesyndication.com", "/pagead/js/adsbygoogle.js")}"></script>
 <script src="${url("www.googletagservices.com", "/tag/js/gpt.js")}"></script>
 <script src="${url("www.google-analytics.com", "/analytics.js")}"></script>
+<script src="${url("imasdk.googleapis.com", "/js/sdkloader/ima3.js")}"></script>
 <img src="${url("tracker.sinkd.test", "/t.gif")}"
      onload="results.trackerLoaded = true" onerror="results.trackerBlocked = true">
 <script>
   results.adsbygoogle = !!(window.adsbygoogle && window.adsbygoogle.loaded);
   if (window.googletag) googletag.cmd.push(function () { results.gptQueue = true; });
   if (window.ga) ga("send", "pageview", { hitCallback: function () { results.gaCallback = true; } });
+  if (window.google && google.ima) {
+    var ima = google.ima;
+    var loader = new ima.AdsLoader(new ima.AdDisplayContainer(document.body));
+    loader.addEventListener(ima.AdErrorEvent.Type.AD_ERROR, function (e) {
+      results.imaNoAds = e.getError().getErrorCode() === ima.AdError.ErrorCode.VAST_EMPTY_RESPONSE;
+    });
+    loader.requestAds(new ima.AdsRequest());
+  }
 </script>`;
 }
 
@@ -221,11 +230,18 @@ async function run() {
     assert.equal(r.adsbygoogle, true, "adsbygoogle surrogate");
     assert.equal(r.gptQueue, true, "googletag.cmd ran the callback");
     await tab.waitForFunction(() => window.results.gaCallback === true);
+    await tab.waitForFunction(() => window.results.imaNoAds !== undefined);
+    assert.equal(
+      await tab.evaluate(() => window.results.imaNoAds),
+      true,
+      "IMA stand-in reported no ads",
+    );
     assert.equal(r.realScript, undefined, "no real ad script ran");
     for (const host of [
       "pagead2.googlesyndication.com",
       "www.googletagservices.com",
       "www.google-analytics.com",
+      "imasdk.googleapis.com",
     ]) {
       assert.ok(!log.some((l) => l.startsWith(host)), `${host} was contacted: ${log}`);
     }
@@ -406,9 +422,21 @@ async function realRules(port) {
         "redirect",
       ],
       [
+        "the IMA SDK gets the surrogate",
+        "https://imasdk.googleapis.com/js/sdkloader/ima3.js",
+        "script",
+        "redirect",
+      ],
+      [
         "analytics.js gets the surrogate",
         "https://www.google-analytics.com/analytics.js",
         "script",
+        "redirect",
+      ],
+      [
+        "a DoubleClick video ad gets the blank video",
+        "https://redirector.gvt1.com/videoplayback/id/1/source/dclk_video_ads/ad.mp4",
+        "media",
         "redirect",
       ],
       ["doubleclick is blocked", "https://ad.doubleclick.net/ddm/adj/x", "image", "block"],

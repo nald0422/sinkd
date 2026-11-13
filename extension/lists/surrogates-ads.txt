@@ -10,3 +10,7 @@
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$script,redirect=googlesyndication_adsbygoogle.js
 ||pagead2.googlesyndication.com/pagead/show_ads.js$script,redirect=googlesyndication_adsbygoogle.js
 ||c.amazon-adsystem.com/aax2/apstag.js$script,redirect=amazon_apstag.js
+! Video players wait on the IMA SDK before they play: the stand-in answers
+! every ad request with "no ads", so they go straight to the video.
+||imasdk.googleapis.com/js/sdkloader/ima3.js$script,redirect=google-ima.js
+||imasdk.googleapis.com/js/sdkloader/ima3_debug.js$script,redirect=google-ima.js

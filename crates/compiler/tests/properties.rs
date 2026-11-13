@@ -48,6 +48,7 @@ fn rule() -> impl Strategy<Value = String> {
         "match-case",
         "redirect=noop.js",
         "redirect=googletagservices_gpt.js",
+        "redirect=google-ima.js",
         "redirect=no-such-thing",
         "redirect-rule=noop.js",
         "removeparam=utm_source",

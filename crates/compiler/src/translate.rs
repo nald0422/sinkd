@@ -970,8 +970,43 @@ mod tests {
             r["action"],
             serde_json::json!({"type": "redirect", "redirect": {"extensionPath": "/war/googletagservices_gpt.js"}})
         );
+        // EasyList's and uBO's video sites: the IMA SDK gets a stand-in.
+        let ima = json(
+            "||imasdk.googleapis.com/js/sdkloader/ima3.js$script,redirect=google-ima.js,domain=nhl.com",
+        );
+        assert_eq!(ima["priority"], 20);
         assert_eq!(
-            rejected("||x.example^$script,redirect=noop-1s.mp4"),
+            ima["action"]["redirect"]["extensionPath"],
+            "/war/google-ima.js"
+        );
+        let alias = json("||imasdk.googleapis.com^$script,redirect=google-ima3");
+        assert_eq!(
+            alias["action"]["redirect"]["extensionPath"],
+            "/war/google-ima.js"
+        );
+        // DNR has no "redirect only if blocked", whatever the resource.
+        assert_eq!(
+            rejected("||imasdk.googleapis.com^$script,redirect-rule=google-ima.js"),
+            "option:redirect-rule"
+        );
+        // Video ads get a silent second of black instead of an error.
+        let mp4 = json("||x.example/preroll.mp4$media,redirect=noop-1s.mp4");
+        assert_eq!(
+            mp4["condition"]["resourceTypes"],
+            serde_json::json!(["media"])
+        );
+        assert_eq!(
+            mp4["action"]["redirect"]["extensionPath"],
+            "/war/noop-1s.mp4"
+        );
+        for alias in ["noopmp4-1s", "abp-resource:blank-mp4"] {
+            assert_eq!(
+                json(&format!("||x.example^$media,redirect={alias}"))["action"]["redirect"]["extensionPath"],
+                "/war/noop-1s.mp4"
+            );
+        }
+        assert_eq!(
+            rejected("||x.example^$media,redirect=noop-30s.mp4"),
             "redirect:unknown-resource"
         );
         assert_eq!(
