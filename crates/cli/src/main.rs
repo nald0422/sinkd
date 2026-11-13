@@ -362,8 +362,23 @@ pub(crate) fn load_config(path: &Path) -> Result<(Config, PathBuf, Cache)> {
     Ok((config, base, Cache::new(dir)))
 }
 
+fn update(config_path: &Path, force: bool) -> Result<()> {
+    let Some(failed) = update_lists(config_path, force)? else {
+        return Ok(());
+    };
+    // A running resolver sees the new files within seconds anyway. Asked out
+    // here because `ctl` starts a runtime of its own, which panics inside one.
+    ctl::reload_if_running(config_path);
+    if failed > 0 {
+        return Err(anyhow!("{failed} list(s) could not be updated"));
+    }
+    Ok(())
+}
+
+/// Checks every URL list, and says how many could not be updated; `None`
+/// when the config has no URL lists.
 #[tokio::main]
-async fn update(config_path: &Path, force: bool) -> Result<()> {
+async fn update_lists(config_path: &Path, force: bool) -> Result<Option<usize>> {
     let (config, _, cache) = load_config(config_path)?;
     // The upstreams find the list servers, as in the daemon.
     let fetcher = Fetcher::builder()
@@ -377,7 +392,7 @@ async fn update(config_path: &Path, force: bool) -> Result<()> {
         .collect();
     if lists.is_empty() {
         println!("No URL lists in {}.", config_path.display());
-        return Ok(());
+        return Ok(None);
     }
     println!("Cache: {}", cache.dir().display());
     // Checked a few at a time, as the daemon does, and reported in config order.
@@ -407,12 +422,7 @@ async fn update(config_path: &Path, force: bool) -> Result<()> {
             failed += usize::from(report.failed());
         }
     }
-    // A running resolver sees the new files within seconds anyway.
-    ctl::reload_if_running(config_path);
-    if failed > 0 {
-        return Err(anyhow!("{failed} list(s) could not be updated"));
-    }
-    Ok(())
+    Ok(Some(failed))
 }
 
 /// The lists of a build manifest, read from `cache` (URL lists) or disk.
@@ -643,5 +653,43 @@ pub(crate) async fn shutdown_signal(on_hangup: impl Fn()) -> io::Result<()> {
     {
         let _ = on_hangup;
         tokio::signal::ctrl_c().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `update` ends by asking a running resolver to reload, through `ctl`,
+    /// which starts a runtime of its own. Done inside `update`'s runtime
+    /// that panicked, after every download had finished.
+    #[test]
+    fn update_reports_a_failed_list_without_panicking() {
+        let dir = std::env::temp_dir().join(format!("sinkd-update-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = dir.join("sinkd.toml");
+        // No upstream answers, so the list's server is never found.
+        std::fs::write(
+            &config,
+            format!(
+                r#"
+[updates]
+cache_dir = "{cache}"
+
+[[upstream]]
+protocol = "udp"
+addr = "127.0.0.1:9"
+
+[[list]]
+name = "unreachable"
+url = "https://lists.sinkd.invalid/list.txt"
+"#,
+                cache = dir.join("cache").display(),
+            ),
+        )
+        .unwrap();
+        let error = update(&config, false).unwrap_err().to_string();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(error, "1 list(s) could not be updated");
     }
 }
