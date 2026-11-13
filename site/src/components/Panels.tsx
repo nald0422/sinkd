@@ -231,12 +231,13 @@ export function EveryApp() {
           label="The resolver"
           dark
           width="w-[88%]"
-          layout="md:block md:space-y-8 lg:grid lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-14 lg:space-y-0"
+          layout="md:block md:space-y-8 lg:grid lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-8 lg:space-y-0 xl:gap-14"
         >
           <div className={`${CARD} bg-carbon`}>
-            <p className="text-base leading-relaxed text-silver tiny:text-sm md:text-lg">
+            <p className="text-base leading-relaxed text-silver tiny:text-sm md:text-lg lg:text-base xl:text-lg">
               The sinkd program becomes your computer's DNS resolver and blocks the same trackers
-              for every app, over encrypted DNS. Its allowlist, blocklist and pause reach the
+              for every app, over encrypted DNS. OISD and AdGuard's DNS lists add the ad networks
+              and telemetry only apps talk to. Its allowlist, blocklist and pause reach the
               extension too.
             </p>
             <div className="mt-5 space-y-2 font-mono text-sm md:mt-8">
@@ -271,7 +272,8 @@ export function EveryApp() {
 }
 
 // The build pipeline (DESIGN.md, "Shape of the system"), with the numbers
-// measured on the public lists, rounded.
+// measured on the public lists, rounded. The resolver's count is a new
+// install's: the pipeline's 89k names and the two DNS lists it adds.
 const STEPS = [
   [
     "Collect",
@@ -292,7 +294,7 @@ const STEPS = [
 
 const TARGETS = [
   ["Browser extension", "blocks requests", "20k rules"],
-  ["Every app", "the DNS resolver", "89k domains"],
+  ["Every app", "the resolver, with two DNS lists", "370k domains"],
   ["On the page", "hides what's left", "43k rules"],
 ] as const;
 
@@ -330,7 +332,7 @@ export function Process() {
       </h2>
       <p className="mt-4 max-w-2xl text-base leading-relaxed text-smoke tiny:hidden md:mt-5 md:text-lg short:mt-3 md:max-lg:hidden">
         The same public filter lists become rules for your browser, your computer's DNS and the page
-        itself, so the three never disagree.
+        itself, so a rule means the same in all three.
       </p>
       <div className="mt-6 md:mt-12 short:mt-8">
         <Carousel

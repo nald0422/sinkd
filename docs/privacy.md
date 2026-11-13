@@ -46,7 +46,7 @@ When you install it, sinkd becomes your computer's DNS resolver:
   your normal DNS provider would; their privacy policies apply. You can
   change them in the config.
 - **Filter lists** are downloaded from their publishers (EasyList, uBlock
-  Origin), as configured, about once a day.
+  Origin, OISD, AdGuard), as configured, about once a day.
 - **The query log** is off by default. If you turn it on, it is kept in
   memory on your computer only, for at most the time you set, and is
   never written to disk or sent anywhere.

@@ -503,6 +503,55 @@ resolves normally; `pagead2.googlesyndication.com` is blocked. The resolver's
 default lists must be DNS-oriented lists (M3). AdGuard Home makes the same
 call for rules with `$third-party`.
 
+**The DNS-oriented lists: OISD big and the AdGuard DNS filter (2026-11-13).**
+The starter config adds both to the extension's three lists. They were
+chosen by measurement, on three sets of names: the 165 hosts an ad-block
+tester probes, 132 names people use and expect to work (dashboards, CDNs,
+sign-in, payments), and 95 ad and tracker addresses that apps really call.
+Names blocked by the resolver alone, lists fetched that day:
+
+| Lists | Tester (165) | Everyday (132) | Real trackers (95) | Load, RSS |
+|---|---|---|---|---|
+| the extension's three | 48 | 2 | 41 | 0.15 s, 13 MB |
+| + HaGeZi Multi PRO | 124 | 13 | 85 | 0.36 s, 25 MB |
+| + OISD big | 111 | 5 | 68 | 0.36 s, 25 MB |
+| + AdGuard DNS filter | 102 | 6 | 80 | not measured |
+| + OISD big + AdGuard DNS filter | 126 | 7 | 83 | 0.58 s, 42 MB |
+
+- **HaGeZi Multi PRO covers the most alone, and breaks the most.** It
+  lists whole vendor domains that are also where people sign in to a
+  dashboard: `sentry.io`, `newrelic.com`, `bugsnag.com`, `mixpanel.com`,
+  `amplitude.com`, `segment.com`, `hotjar.com`. A default must not do that.
+- **The other two fill each other's gaps.** OISD breaks the least but
+  leaves analytics alone (`www.google-analytics.com`,
+  `app-measurement.com`). AdGuard's list covers analytics but misses most
+  mobile ad networks. Together they match HaGeZi with about half the
+  false blocks.
+- The pair's 7 everyday names: 2 that the three lists block already
+  (`imasdk.googleapis.com`, `statsig.anthropic.com`), and
+  `app.optimizely.com`, `segment.com`, `app.segment.com`, `hotjar.com`,
+  `insights.hotjar.com`. `sinkd allow add` is the way out, and the
+  starter config says so.
+- OISD's header asks for an hourly check (`! Expires: 1 hours`). The
+  starter config holds it to a day with `refresh_hours = 24`.
+- AdGuard's list carries 216 `@@||name^` exceptions. An exception from any
+  list beats every blocklist, so they apply to the other four lists too:
+  `go.redirectingat.com`, which EasyList blocks, now resolves. Accepted:
+  they are that list's fixes for breakage.
+- Through a running resolver with the five lists from their URLs (`dig`):
+  127 of 165, 7 of 132, 83 of 95. The extra tester host is CNAME
+  uncloaking. The five lists give 369,740 block entries and 188
+  exceptions.
+- **Still open at DNS level,** because the name also serves content or
+  the lists leave it: `s.youtube.com`, `redirector.googlevideo.com`,
+  `dai.google.com`, `cdn.onesignal.com`, `static.klaviyo.com`,
+  `widget.intercom.io`, `cdn.optimizely.com`. In a browser the extension
+  deals with those in the page.
+- **The resolver now blocks names the extension does not.** That is the
+  point (it has no page to look at), and `sinkd check` shows both
+  verdicts. The lists are downloaded by each install from their
+  publishers (both GPLv3) and are not shipped with sinkd.
+
 ## Lists (`lists`, M3)
 
 **The cache is the single source of truth for URL lists.** A refresh writes

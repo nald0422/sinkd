@@ -392,6 +392,20 @@ url = "https://easylist.to/easylist/easyprivacy.txt"
 [[list]]
 name = "uBlock Origin badware"
 url = "https://ublockorigin.github.io/uAssets/filters/badware.txt"
+
+# Two lists written for DNS, both GPLv3. The lists above keep most of the big
+# ad and tracker names behind rules that depend on the page, which a resolver
+# cannot apply; these name the hosts outright, and cover what only apps talk
+# to (mobile ad networks, telemetry). OISD asks to be checked hourly; daily
+# is enough. If one blocks a name you need: `sinkd allow add NAME`.
+[[list]]
+name = "OISD big"
+url = "https://big.oisd.nl/"
+refresh_hours = 24
+
+[[list]]
+name = "AdGuard DNS filter"
+url = "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt"
 "#,
         cache = paths.cache.display(),
     )
@@ -660,7 +674,15 @@ mod tests {
             let text = starter_config(&paths, Some(501));
             let config = Config::from_toml(&text).unwrap();
             assert_eq!(config.control.users, [501]);
-            assert_eq!(config.lists.len(), 3);
+            assert_eq!(config.lists.len(), 5);
+            // Only OISD is held to a daily check; it asks for an hourly one.
+            let held: Vec<_> = config
+                .lists
+                .iter()
+                .filter(|list| list.refresh_hours.is_some())
+                .map(|list| (list.name.as_deref(), list.refresh_hours))
+                .collect();
+            assert_eq!(held, [(Some("OISD big"), Some(24))]);
             assert_eq!(
                 config.updates.cache_dir.as_deref(),
                 Some(paths.cache.as_path())

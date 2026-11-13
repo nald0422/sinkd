@@ -88,7 +88,8 @@ What it does, in this order:
 1. Copies the binary to `/usr/local/bin/sinkd` and writes a config
    (`/usr/local/etc/sinkd/sinkd.toml` on macOS,
    `/etc/sinkd/sinkd.toml` on Linux) with EasyList, EasyPrivacy and
-   uBlock Origin's badware list, and Quad9 then Cloudflare over
+   uBlock Origin's badware list, two lists written for DNS (OISD big and
+   the AdGuard DNS filter), and Quad9 then Cloudflare over
    DNS-over-HTTPS. An existing config is kept.
 2. Starts the resolver as a service that never runs as root:
    - macOS: a launchd daemon binds port 53, then hands the sockets to an
@@ -198,6 +199,36 @@ cargo run --release -p sinkd-cli -- update --config config/dev.toml
 
 A running resolver picks up what `update` downloads within seconds. `update
 --force` downloads in full and accepts a list that shrank drastically.
+
+### The lists an install starts with
+
+EasyList, EasyPrivacy and uBlock Origin's badware list are the extension's
+lists. On their own they block little at DNS level: their rules for the big
+ad and tracker names depend on the page (`$third-party`, `$script`), which
+a resolver cannot apply, so it skips them. Two lists written for DNS fill
+that in, and cover what only apps talk to (mobile ad networks, telemetry):
+[OISD big](https://oisd.nl) and the
+[AdGuard DNS filter](https://github.com/AdguardTeam/AdGuardSDNSFilter).
+
+A config written before they were added does not get them by itself. Add
+them at the end of it; the resolver downloads and applies them within a
+minute:
+
+```toml
+[[list]]
+name = "OISD big"
+url = "https://big.oisd.nl/"
+refresh_hours = 24
+
+[[list]]
+name = "AdGuard DNS filter"
+url = "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt"
+```
+
+A DNS list blocks a name for every app and on every page, so it can block
+one you use: `segment.com` and `hotjar.com` are on these, for example.
+`sinkd check NAME` says when that is the cause, and `sinkd allow add NAME`
+lets the name through.
 
 ## Recovery
 

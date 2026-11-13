@@ -52,8 +52,8 @@
       <p>A local DNS sinkhole answers ad and tracker names with <code>0.0.0.0</code> for every app on the machine, and sends the rest over encrypted DNS. One command installs it; one puts everything back.</p>
     </td>
     <td width="33%" valign="top">
-      <h3>One set of rules</h3>
-      <p>One compiler turns EasyList, EasyPrivacy and uBlock Origin's lists into both, so the browser and the resolver agree, and <code>sinkd check</code> tells you which rule decided.</p>
+      <h3>One rule engine</h3>
+      <p>One compiler turns EasyList, EasyPrivacy and uBlock Origin's lists into rules for both. The resolver adds two lists made for DNS, OISD and AdGuard's, and <code>sinkd check</code> tells you which rule decided.</p>
     </td>
   </tr>
 </table>
@@ -65,7 +65,7 @@
 | Blocks ads and trackers in every app, not just the browser | ✅ | — | ✅ |
 | Hides leftover ad boxes and works around ad-blocker detection | — | ✅ | ✅ |
 | Strips tracking parameters, tracker cookies and the referrer | — | ✅ | ✅ |
-| One rule set for both, and one command that explains any block | — | — | ✅ |
+| One rule engine for both, and one command that explains any block | — | — | ✅ |
 
 ## A closer look
 
@@ -98,6 +98,7 @@
 
 **Blocking**
 - Ads, trackers, and malware, scam and phishing sites, from EasyList, EasyPrivacy and uBlock Origin's lists.
+- In the resolver, two more lists made for DNS, [OISD](https://oisd.nl) and the [AdGuard DNS filter](https://github.com/AdguardTeam/AdGuardSDNSFilter), for the ad networks and telemetry that only apps talk to.
 - Harmless stand-ins for the ad and analytics scripts pages depend on, so pages keep working.
 - Hides ad elements and runs the lists' scriptlets without leaving traces a page could detect.
 - Closes the ad tabs pages pop open.
