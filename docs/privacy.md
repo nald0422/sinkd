@@ -1,6 +1,6 @@
 # Privacy policy
 
-*sinkd, version 0.1. Last updated 2026-11-11.*
+*sinkd, version 0.1. Last updated 2026-11-13.*
 
 **sinkd collects no data about you.** It has no account, no analytics, no
 telemetry, no crash reporting and no server of its own. Nothing it sees
@@ -20,8 +20,8 @@ is sent to the developer or to anyone else.
 - **New tabs.** When a page opens a tab, the extension compares that
   tab's address with the filter lists it ships with, and closes the tab if
   they block it. This happens on your device and goes nowhere.
-- **The log** (Chrome). When you open the popup, it asks Chrome which of
-  sinkd's rules acted in that tab, and reads the hostnames the page loaded
+- **The log** (Chrome). When you open the popup's Log tab, it asks Chrome
+  which of sinkd's rules acted in that tab, and reads the hostnames the page loaded
   from, to say which ones a rule over a list of sites acted on. While the
   popup stays open, it watches that tab's requests (their addresses and
   headers) to show what sinkd does to each as it happens. It shows this in
@@ -55,4 +55,7 @@ When you install it, sinkd becomes your computer's DNS resolver:
 
 ## Contact
 
-Questions: open an issue at <https://github.com/nald0422/sinkd/issues>.
+Questions: email <bill22.db@gmail.com>, or open an issue at
+<https://github.com/nald0422/sinkd/issues>. The support page,
+<https://nald0422.github.io/sinkd/support.html>, has fixes for common
+problems. We see only what you choose to send.

@@ -7,11 +7,15 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss()],
-  // The licenses of the libraries bundled in (React's MIT notice has to
-  // travel with it), linked from the page's footer.
-  // Two pages: the landing page and support.html.
+  // privacy.html renders ../docs/privacy.md, outside the site.
+  server: { fs: { allow: [".", "../docs"] } },
+  // Three pages: the landing page, support.html and privacy.html. And the
+  // licenses of the libraries bundled in (React's MIT notice has to travel
+  // with it), linked from the footers.
   build: {
     license: { fileName: "licenses.md" },
-    rollupOptions: { input: { main: "index.html", support: "support.html" } },
+    rollupOptions: {
+      input: { main: "index.html", support: "support.html", privacy: "privacy.html" },
+    },
   },
 });

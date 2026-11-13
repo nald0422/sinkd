@@ -6,8 +6,8 @@ Text to paste into the Chrome Web Store and addons.mozilla.org (AMO).
 
 - **Name:** sinkd
 - **Homepage:** https://github.com/nald0422/sinkd
-- **Support:** https://github.com/nald0422/sinkd/issues
-- **Privacy policy:** https://github.com/nald0422/sinkd/blob/main/docs/privacy.md
+- **Support:** https://nald0422.github.io/sinkd/support.html
+- **Privacy policy:** https://nald0422.github.io/sinkd/privacy.html
 - **Category:** Privacy & Security (AMO); Privacy & Security, or
   Productivity → Tools if offered (Chrome)
 

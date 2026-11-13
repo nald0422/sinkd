@@ -381,7 +381,7 @@ export function Process() {
 export function Open() {
   const links = [
     ["Source on GitHub", GITHUB],
-    ["Privacy policy", `${GITHUB}/blob/main/docs/privacy.md`],
+    ["Privacy policy", "./privacy.html"],
     ["Support", "./support.html"],
     ["How it's built", `${GITHUB}/blob/main/DESIGN.md`],
   ] as const;
