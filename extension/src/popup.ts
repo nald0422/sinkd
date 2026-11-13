@@ -281,7 +281,8 @@ async function rulesFor(matches: Match[], rulesets: RulesetInfo[]): Promise<Map<
   return found;
 }
 
-type Earlier = { lines: ConsoleLine[] } | { error: string };
+/** `limited`: refused by the cap on reads outside a click, so a click can read it. */
+type Earlier = { lines: ConsoleLine[] } | { error: string; limited: boolean };
 
 /**
  * What sinkd did in the tab before `since`, from the browser: from then on
@@ -297,8 +298,11 @@ async function readEarlier(state: State, tabId: number, since: number): Promise<
   } catch (e) {
     // Reads outside a click are limited to 20 in 10 minutes.
     return /quota/i.test(String(e))
-      ? { error: `${BROWSER_NAME} limits how often sinkd may read what it did earlier.` }
-      : { error: `${BROWSER_NAME} didn't let sinkd read what it did earlier.` };
+      ? {
+          error: `${BROWSER_NAME} limits how often sinkd may read what it did earlier.`,
+          limited: true,
+        }
+      : { error: `${BROWSER_NAME} didn't let sinkd read what it did earlier.`, limited: false };
   }
   const names = new Map(state.rulesets.map((r) => [r.id, r.name]));
   const [rules, hosts] = await Promise.all([rulesFor(matches, state.rulesets), pageHosts(tabId)]);
@@ -431,8 +435,10 @@ const screen = {
   sums: new Map<LogAction, number>(),
   /** False when the earlier matches couldn't be read: the total then starts at opening. */
   exact: true,
+  /** The earlier matches were read (or failed to be): until then the total has only live ones. */
+  earlierRead: false,
   last: null as { line: ConsoleLine; item: HTMLLIElement } | null,
-  /** Lines waiting for the earlier ones, then for the next draw. */
+  /** Lines waiting for the console to start, then for the next draw. */
   queue: [] as ConsoleLine[],
   ready: false,
   /** The page changed since the console started: what was read back is the old page's. */
@@ -472,6 +478,81 @@ function lineItem(line: ConsoleLine): HTMLLIElement {
 
 function divider(text: string, notice = false): HTMLLIElement {
   return el("li", notice ? "divider notice" : "divider", text);
+}
+
+/**
+ * Reads what sinkd did before the popup opened, into the log. Not on
+ * opening but from the click (or key) that first shows the log: most
+ * opens never show it, and the read parses megabytes of rules. And
+ * Chrome caps reads at 20 in 10 minutes, but not the ones a click asks
+ * for, so a popup opened often no longer comes up with an empty log.
+ * `null` once read, or when there is nothing to read.
+ */
+let loadEarlier: (() => void) | null = null;
+/** The log has been shown, maybe before the console started. */
+let logShown = false;
+
+/** Where the earlier lines go, before the live ones; empty until they're read. */
+const EARLIER_SLOT = "log-earlier";
+
+/**
+ * Why the earlier matches are missing, and, when a click can read them
+ * (`limited`), a button that does.
+ */
+function earlierNotice(slot: HTMLElement, text: string, limited: boolean): void {
+  slot.className = "divider notice";
+  slot.replaceChildren(el("span", "", limited ? `${text} ` : text));
+  if (limited) {
+    const again = el("button", "again", "Show them");
+    again.type = "button";
+    again.onclick = () => loadEarlier?.();
+    slot.append(again);
+  }
+  slot.hidden = false;
+}
+
+/**
+ * `loadEarlier` for a console started at `since`: the earlier lines take
+ * the slot's place and count; or the slot says why there are none.
+ */
+function earlierLoader(state: State, tabId: number, since: number): () => void {
+  let reading = false;
+  return () => {
+    if (reading) return;
+    reading = true;
+    // getMatchedRules is called before readEarlier's first await, so
+    // inside the click that called this.
+    readEarlier(state, tabId, since)
+      .then((earlier) => {
+        if (screen.navigated) return;
+        // Gone if more than MAX_LINES came in live meanwhile: then the
+        // earlier lines would be off the top, and only count.
+        const slot = document.getElementById(EARLIER_SLOT);
+        if ("error" in earlier) {
+          // A click can read past the cap; nothing helps with the rest.
+          if (!earlier.limited || !slot) loadEarlier = null;
+          screen.exact = false;
+          if (slot) earlierNotice(slot, earlier.error, earlier.limited);
+        } else {
+          loadEarlier = null;
+          const list = $("log-lines");
+          const stick = atBottom(list);
+          if (slot) slot.replaceWith(...earlier.lines.map(lineItem));
+          for (const line of earlier.lines) {
+            screen.total += line.count;
+            screen.sums.set(line.action, (screen.sums.get(line.action) ?? 0) + line.count);
+          }
+          screen.exact = true;
+          if (stick) list.scrollTop = list.scrollHeight;
+        }
+        screen.earlierRead = true;
+        drawCounts();
+      })
+      .catch((e) => console.error("sinkd popup:", e))
+      .finally(() => {
+        reading = false;
+      });
+  };
 }
 
 const atBottom = (list: HTMLElement) =>
@@ -518,8 +599,9 @@ function draw(): void {
 
 function drawCounts(): void {
   const pill = $("log-count");
-  // Like the badge, which shows nothing at 0.
-  pill.hidden = screen.total === 0;
+  // Like the badge, which shows nothing at 0; and nothing until it can
+  // match the badge, once the earlier matches are in.
+  pill.hidden = screen.total === 0 || !screen.earlierRead;
   pill.textContent = screen.total.toLocaleString();
   $("log-total").textContent = screen.total.toLocaleString();
   $("log-caption").textContent = screen.exact
@@ -552,6 +634,9 @@ function startOver(url: string): void {
   screen.last = null;
   screen.unseen = 0;
   screen.navigated = true;
+  // Everything on the new page is seen live.
+  screen.earlierRead = true;
+  loadEarlier = null;
   // Lines of the old page still waiting are gone with it.
   screen.queue = [];
   $("log-lines").replaceChildren(divider(`navigated · ${url.replace(/^[a-z]+:\/\//, "")}`));
@@ -617,27 +702,22 @@ async function startConsole(): Promise<void> {
   const since = Date.now();
   const params = state.rulesets.find((r) => r.id === "params")?.name;
   watch(tabId, params ?? "Tracking parameters", push, startOver);
-  const earlier = await readEarlier(state, tabId, since);
   const list = $("log-lines");
-  if (screen.navigated) {
-    // A new page while reading: everything on it is seen live.
-  } else if ("error" in earlier) {
-    screen.exact = false;
-    list.append(divider(earlier.error, true));
-  } else {
-    // Earlier lines go first, before anything seen live meanwhile.
-    screen.queue = [...earlier.lines, ...screen.queue];
+  if (!screen.navigated) {
+    const slot = el("li", "");
+    slot.id = EARLIER_SLOT;
+    slot.hidden = true;
+    list.append(slot, divider(`live since ${clock(since)}`));
+    loadEarlier = earlierLoader(state, tabId, since);
   }
-  const live = screen.queue.filter((line) => line.live);
-  screen.queue = screen.queue.filter((line) => !line.live);
-  draw();
-  if (!screen.navigated) list.append(divider(`live since ${clock(since)}`));
   if (state.paused) {
     list.append(divider("sinkd is off for this site, so it changes nothing here.", true));
   }
   screen.ready = true;
-  screen.queue = live;
   draw();
+  // The log was shown before the console started: no click to read in
+  // now, but the cap is rarely reached, and the notice has a button.
+  if (logShown) loadEarlier?.();
 }
 
 // ---------------------------------------------------------------- the views
@@ -655,6 +735,9 @@ function show(view: View, focus = false): void {
     if (selected && focus) tab.focus();
   }
   if (view === "log") {
+    // From the click or key that shows the log, so Chrome doesn't count it.
+    logShown = true;
+    loadEarlier?.();
     const list = $("log-lines");
     list.scrollTop = list.scrollHeight;
     screen.unseen = 0;
@@ -700,23 +783,60 @@ const SPLASH_INPUTS = [
 ] as const;
 /** The popup's height when it last opened, so it opens at full height under the splash. */
 const HEIGHT_KEY = "sinkd:popup-height";
+/** Set once the splash has played: it plays the first time the popup opens, not every time. */
+const SPLASH_SEEN_KEY = "sinkd:splash-seen";
 const FIRST_HEIGHT = 560;
 /** The tallest a popup gets, in Chrome and in Firefox. */
 const MOST_HEIGHT = 600;
 
 /**
- * The splash as the popup opens ("the splash" in core.ts). It plays at
- * its own pace whatever the user does, holds every input back from the
+ * Opens the popup at the height it had last time, not small and then
+ * growing as the controls arrive (or under the splash). The returned
+ * function lets the popup take its own height again, and remembers it.
+ */
+function holdHeight(): () => void {
+  let height = FIRST_HEIGHT;
+  try {
+    height = Number(localStorage.getItem(HEIGHT_KEY)) || FIRST_HEIGHT;
+  } catch {
+    // Storage blocked: the usual height.
+  }
+  document.body.style.minHeight = `${Math.min(MOST_HEIGHT, height)}px`;
+  return () => {
+    document.body.style.minHeight = "";
+    try {
+      localStorage.setItem(HEIGHT_KEY, String(document.documentElement.scrollHeight));
+    } catch {
+      // Storage blocked: next time opens at the usual height.
+    }
+  };
+}
+
+/**
+ * The splash the first time the popup opens after install ("the splash"
+ * in core.ts); later opens go straight to the controls. It plays at its
+ * own pace whatever the user does, holds every input back from the
  * controls until it is gone, and leaves once it is whole and the controls
- * have rendered (`ready`). Never with reduced motion.
+ * have rendered (`ready`). Never with reduced motion, and never when
+ * storage is blocked, since then it could not tell a first open apart.
  */
 function splashScreen(ready: Promise<unknown>): void {
   const splash = document.getElementById("splash");
   if (!splash) return;
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  let first = false;
+  try {
+    first = localStorage.getItem(SPLASH_SEEN_KEY) === null;
+    if (first) localStorage.setItem(SPLASH_SEEN_KEY, "1");
+  } catch {
+    // Storage blocked: no splash.
+  }
+  const release = holdHeight();
+  if (!first || matchMedia("(prefers-reduced-motion: reduce)").matches) {
     splash.remove();
+    ready.then(release, release);
     return;
   }
+  splash.hidden = false;
   const shapes = [...splash.querySelectorAll<SVGRectElement>("rect")];
   const word = splash.querySelector<HTMLElement>(".splash-word");
   const draw = (t: number) => {
@@ -743,16 +863,6 @@ function splashScreen(ready: Promise<unknown>): void {
     }
   };
 
-  // Open at the height the controls will take, not grow under the splash
-  // as they arrive.
-  let height = FIRST_HEIGHT;
-  try {
-    height = Number(localStorage.getItem(HEIGHT_KEY)) || FIRST_HEIGHT;
-  } catch {
-    // Storage blocked: the usual height.
-  }
-  document.body.style.minHeight = `${Math.min(MOST_HEIGHT, height)}px`;
-
   // No click lands on a switch underneath, no key moves the focus or flips
   // one. Escape still closes the popup, and shortcuts do what they do.
   const take = (event: Event) => {
@@ -770,12 +880,7 @@ function splashScreen(ready: Promise<unknown>): void {
   const leave = () => {
     if (leaving || !whole || !rendered) return;
     leaving = true;
-    document.body.style.minHeight = "";
-    try {
-      localStorage.setItem(HEIGHT_KEY, String(document.documentElement.scrollHeight));
-    } catch {
-      // Storage blocked: next time opens at the usual height.
-    }
+    release();
     splash.animate([{ opacity: 1 }, { opacity: 0 }], {
       duration: SPLASH.fade,
       easing: "ease-out",

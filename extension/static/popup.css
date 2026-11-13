@@ -62,9 +62,11 @@ p { margin: 0; }
 
 /* ------------------------------------------------------------ the splash */
 
-/* The mark putting itself together as the popup opens (popup.ts), over
-   the controls, which load meanwhile. Never with reduced motion; and if
-   the script never runs, it gets out of the way by itself. */
+/* The mark putting itself together the first time the popup opens
+   (popup.ts), over the controls, which load meanwhile. Hidden until the
+   script shows it, so a popup that has played it once never flashes it,
+   and never with reduced motion. */
+.splash[hidden] { display: none; }
 .splash {
   position: fixed;
   inset: 0;
@@ -75,7 +77,6 @@ p { margin: 0; }
   justify-content: center;
   gap: 12px;
   background: var(--bg);
-  animation: splash-gone 0s linear 7s forwards;
 }
 .splash svg { display: block; overflow: visible; }
 .splash .frame { fill: none; stroke: var(--text); }
@@ -85,7 +86,6 @@ p { margin: 0; }
   letter-spacing: -0.02em;
   opacity: 0;
 }
-@keyframes splash-gone { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
   .splash { display: none; }
 }
@@ -411,6 +411,15 @@ button.action {
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--c-line); }
 .divider.notice { display: block; color: var(--c-warn); }
 .divider.notice::before, .divider.notice::after { display: none; }
+.divider .again {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .hide-blocked .t-blocked, .hide-replaced .t-replaced, .hide-cleaned .t-cleaned,
 .hide-upgraded .t-upgraded, .hide-headers .t-headers, .hide-other .t-other { display: none; }

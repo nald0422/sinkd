@@ -1073,13 +1073,23 @@ Apache-2.0:
   change on every request, so on a busy page most of the count is GPC.
 - **Log:** the popup's second view is a live console of those matches, so
   it adds up to the badge.
-  - On opening: `getMatchedRules` for the tab, minus the allow rules,
-    grouped by rule. Chrome reports the rule, not the request, so these
-    lines say what their rule targets. A rule over a list of domains is
-    named by the page's hosts it covers, unless another matched rule names
-    that host outright; it would rather say "one of 43,479 sites" than a
-    wrong name. Reads outside a click are capped at 20 per 10 minutes,
-    which is why the live part doesn't poll.
+  - What happened before opening: `getMatchedRules` for the tab, minus
+    the allow rules, grouped by rule. Chrome reports the rule, not the
+    request, so these lines say what their rule targets. A rule over a
+    list of domains is named by the page's hosts it covers, unless another
+    matched rule names that host outright; it would rather say "one of
+    43,479 sites" than a wrong name.
+  - It is read from the click (or key) that first shows the Log tab, not
+    on opening. Reads outside a click are capped at 20 per 10 minutes, so
+    reading on every opening left the log empty while the badge counted
+    once the popup had been opened often (the cap does not seem to apply
+    to unpacked builds, so it showed only in the store's). And most
+    openings never show the log, while describing the matches parses the
+    rulesets they came from: about 4 MB and 50 ms, and 15 MB of memory,
+    measured on the development Mac. Should a read still be refused by the
+    cap, the notice has a "Show them" button that reads in its click.
+    The tab's count appears once the read is in, so it always matches
+    the badge. The live part never polls, for the same cap.
   - From then on, `webRequest` in the popup, for that tab only, with the
     request's address: a block is `ERR_BLOCKED_BY_CLIENT`; a stand-in is a
     redirect to a `war/` file (on a random per-session host, as
@@ -1097,14 +1107,18 @@ Apache-2.0:
     live lines can run ahead of the badge.
   - Firefox has neither the count nor `getMatchedRules`, so its popup has
     no log.
-- **Splash:** the popup opens on the mark putting itself together (the
-  website's Absorb splash, shortened), holds it still for 0.8 s and fades:
-  about 2.7 s in all, while the controls load underneath. It runs on its
-  own clock, so clicks and keys neither speed it up nor reach the switches
-  (Escape still closes the popup). It never shows
-  with reduced motion, and CSS removes it after 7 s if the script fails. The
-  popup's last height stays in the popup's `localStorage`, so it opens at
-  full height instead of growing under the splash.
+- **Splash:** the first time the popup opens after install, it opens on
+  the mark putting itself together (the website's Absorb splash,
+  shortened), holds it still for 0.8 s and fades: about 2.7 s in all,
+  while the controls load underneath. Every later open goes straight to
+  the controls; a flag in the popup's `localStorage` remembers it played,
+  and uninstalling clears it. It runs on its own clock, so clicks and keys
+  neither speed it up nor reach the switches (Escape still closes the
+  popup). It is hidden until the script shows it, so it never flashes on
+  a later open or stays up if the script fails, and it never shows with
+  reduced motion. The popup's last height stays in `localStorage` too, so
+  every open starts at full height instead of growing as the controls
+  arrive.
 - **Messages:** settings change only from the extension's own pages. The
   content script (M6) may ask for its own frame's cosmetic rules and
   nothing else; its messages are validated like any untrusted input,
