@@ -9,5 +9,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   // The licenses of the libraries bundled in (React's MIT notice has to
   // travel with it), linked from the page's footer.
-  build: { license: { fileName: "licenses.md" } },
+  // Two pages: the landing page and support.html.
+  build: {
+    license: { fileName: "licenses.md" },
+    rollupOptions: { input: { main: "index.html", support: "support.html" } },
+  },
 });
