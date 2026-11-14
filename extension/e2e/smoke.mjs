@@ -311,6 +311,18 @@ async function run() {
     assert.equal(count, 3);
   });
 
+  check("shows its version and restarts into store updates", async () => {
+    const shown = await ext.popup((doc) => doc.getElementById("version").textContent);
+    const version = await ext.evaluate(() => chrome.runtime.getManifest().version);
+    assert.equal(shown, `v${version}`);
+    // Firefox has the event but can't say whether anything listens to it.
+    const listening = await ext.evaluate(() => {
+      const event = chrome.runtime.onUpdateAvailable;
+      return typeof event.hasListeners === "function" ? event.hasListeners() : event !== undefined;
+    });
+    assert.equal(listening, true);
+  });
+
   let failed = 0;
   console.log(
     `${browserName}, fixture build: ${fixture.rules} rules; rulesets enabled ${setupMs} ms after install`,

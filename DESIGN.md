@@ -1119,6 +1119,16 @@ Apache-2.0:
   reduced motion. The popup's last height stays in `localStorage` too, so
   every open starts at full height instead of growing as the controls
   arrive.
+- **Version and updates:** the popup shows the installed version beside
+  the name. The store downloads a new version by itself, but the browser
+  installs it only once the background script stops, and while the bridge
+  is connected it never does (the open native port keeps it running), so
+  an update could wait for a browser restart. `runtime.onUpdateAvailable`
+  restarts into it as soon as it is downloaded instead: after any settings
+  change in flight, and not while the popup is open (`runtime.getContexts`,
+  retried every 30 s), which the restart would close. On restart
+  `onInstalled` applies the settings again, as on any update. Nothing is
+  fetched for this; the browser already has the update.
 - **Messages:** settings change only from the extension's own pages. The
   content script (M6) may ask for its own frame's cosmetic rules and
   nothing else; its messages are validated like any untrusted input,

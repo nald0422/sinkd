@@ -802,6 +802,53 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onStartup.addListener(() => {
   start().catch((e) => console.error("sinkd: setup failed", e));
 });
+// ------------------------------------------------------------- updates
+//
+// The store downloads a new version by itself, but the browser installs it
+// only once this script stops, and while the bridge is connected it never
+// does (the open native port keeps it running), so an update could wait
+// for the browser to restart. Restart into it as soon as it arrives
+// instead: after any settings change in flight is applied, and not while
+// the popup is open, which the restart would close under the user. The
+// restart is an update like any other: onInstalled applies the settings
+// again. Nothing here contacts anything; the browser fetched the update.
+
+const UPDATE_RETRY_MS = 30_000;
+let updateWaiting = false;
+
+/** How many of this extension's popups are open. */
+async function openPopups(): Promise<number> {
+  if (typeof chrome.runtime.getContexts === "function") {
+    const popups = await chrome.runtime.getContexts({
+      contextTypes: ["POPUP" as chrome.runtime.ContextType],
+    });
+    return popups.length;
+  }
+  // Older Firefox: its event page can list its own views.
+  return chrome.extension?.getViews?.({ type: "popup" }).length ?? 0;
+}
+
+async function restartIntoUpdate(version: string): Promise<void> {
+  await applying;
+  if ((await openPopups()) > 0) {
+    // Should this script stop meanwhile, the browser installs it anyway.
+    setTimeout(() => {
+      restartIntoUpdate(version).catch((e) => console.error("sinkd: update failed", e));
+    }, UPDATE_RETRY_MS);
+    return;
+  }
+  console.info(`sinkd: restarting into ${version}`);
+  chrome.runtime.reload();
+}
+
+chrome.runtime.onUpdateAvailable.addListener(({ version }) => {
+  if (updateWaiting) {
+    return;
+  }
+  updateWaiting = true;
+  restartIntoUpdate(version).catch((e) => console.error("sinkd: update failed", e));
+});
+
 // Load the engine as soon as the worker starts, not on the first page.
 engine().catch((e) => console.error("sinkd: page engine failed to load", e));
 

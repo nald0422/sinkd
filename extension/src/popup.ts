@@ -915,6 +915,9 @@ function splashScreen(ready: Promise<unknown>): void {
   requestAnimationFrame(tick);
 }
 
+// The installed version, which an update changes on its next open.
+$("version").textContent = `v${chrome.runtime.getManifest().version}`;
+
 const ready = refresh();
 splashScreen(ready);
 ready
